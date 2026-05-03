@@ -1,0 +1,114 @@
+import React, { useEffect, useState } from 'react';
+import {
+  StatusBar, SafeAreaView, StyleSheet,
+  View, Text, ActivityIndicator, Pressable,
+} from 'react-native';
+import { MissionControlScreen } from './src/screens/MissionControlScreen';
+import { TelemetryScreen } from './src/screens/TelemetryScreen';
+import { C } from './src/theme/colors';
+import { initDb } from './src/db/database';
+import { migrateJsonToSqlite } from './src/db/migrate_json';
+
+function App(): React.JSX.Element {
+  const [ready,  setReady]  = useState(false);
+  const [error,  setError]  = useState<string | null>(null);
+  const [migMsg, setMigMsg] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'mission' | 'telemetry'>('mission');
+
+  const setupRan = React.useRef(false);
+  useEffect(() => {
+    async function setup() {
+      if (setupRan.current) return;
+      setupRan.current = true;
+      try {
+        // Step 1: init DB and apply schema — must complete before migration
+        const db = await initDb();
+        console.log('[App] DB ready — applying migration...');
+
+        // Step 2: now safe to migrate JSON data
+        const result = await migrateJsonToSqlite(db);
+        console.log('[App] Migration result:', JSON.stringify(result));
+
+        if (result.success && !result.alreadyDone && result.results) {
+          const { rides = 0, messages = 0 } = result.results;
+          if (rides > 0 || messages > 0) {
+            setMigMsg(`Imported ${rides} ride${rides !== 1 ? 's' : ''} and ${messages} message${messages !== 1 ? 's' : ''}.`);
+          }
+        }
+        if (!result.success) console.warn('[App] Migration failed:', result.error);
+
+        setReady(true);
+      } catch (err: any) {
+        console.error('[App] Setup failed:', err);
+        setError(err.message ?? 'Failed to initialise database');
+      }
+    }
+    setup();
+  }, []);
+
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <Text style={styles.errorText}>Failed to start.{'\n'}Please restart the app.</Text>
+        <Text style={styles.errorDetail}>{error}</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!ready) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <ActivityIndicator color="#1D6B3E" size="large" />
+        <Text style={styles.loadingText}>Starting up…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
+      <View style={styles.tabBar}>
+        <Pressable style={[styles.tab, activeTab === 'mission' && styles.tabActive]}
+          onPress={() => setActiveTab('mission')}>
+          <Text style={[styles.tabText, activeTab === 'mission' && styles.tabTextActive]}>Mission</Text>
+        </Pressable>
+        <Pressable style={[styles.tab, activeTab === 'telemetry' && styles.tabActive]}
+          onPress={() => setActiveTab('telemetry')}>
+          <Text style={[styles.tabText, activeTab === 'telemetry' && styles.tabTextActive]}>Telemetry</Text>
+        </Pressable>
+      </View>
+      {activeTab === 'mission' ? <MissionControlScreen /> : <TelemetryScreen />}
+      {migMsg && <MigrationToast message={migMsg} onDismiss={() => setMigMsg(null)} />}
+    </SafeAreaView>
+  );
+}
+
+function MigrationToast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+  return (
+    <View style={styles.toast}>
+      <Text style={styles.toastText}>{message}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  tabBar: { flexDirection: 'row', backgroundColor: C.surface,
+    borderBottomWidth: 0.5, borderBottomColor: '#333' },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
+  tabActive: { borderBottomWidth: 2, borderBottomColor: '#1D6B3E' },
+  tabText: { fontSize: 13, color: '#6B7A99' },
+  tabTextActive: { color: '#1D6B3E', fontWeight: '500' },
+  container:   { flex: 1, backgroundColor: C.surface },
+  center:      { alignItems: 'center', justifyContent: 'center', gap: 12 },
+  errorText:   { fontSize: 17, color: '#B85450', textAlign: 'center', lineHeight: 26 },
+  errorDetail: { fontSize: 12, color: '#8A7A6A', textAlign: 'center', paddingHorizontal: 32 },
+  loadingText: { fontSize: 14, color: '#8A7A6A', marginTop: 8 },
+  toast:       { position: 'absolute', bottom: 24, left: 20, right: 20, backgroundColor: '#1D6B3E', borderRadius: 8, padding: 12, alignItems: 'center' },
+  toastText:   { color: '#fff', fontSize: 13, fontWeight: '500' },
+});
+
+export default App;

@@ -1,0 +1,10 @@
+node_modules/
+mobile/node_modules/
+android/
+mobile/android/build/
+*.apk
+*.keystore
+.gradle/
+build/
+android-studio/
+*.tar.gz

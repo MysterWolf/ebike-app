@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@op-engineering/op-sqlite": "^15.2.12"
+  }
+}
