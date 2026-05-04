@@ -123,7 +123,8 @@ export function RideTab({ state, update, onSysMsg }: Props) {
           onPress: () => {
             const newLog = state.rideLog.filter((_, i) => i !== origIdx);
             const newOdometer = Math.max(0, Math.round((state.odometer - removed.distance) * 10) / 10);
-            update({ rideLog: newLog, odometer: newOdometer });
+            const newBattery = Math.min(100, Math.round((state.battery + removed.batteryUsed) * 10) / 10);
+            update({ rideLog: newLog, odometer: newOdometer, battery: newBattery });
           },
         },
       ],
