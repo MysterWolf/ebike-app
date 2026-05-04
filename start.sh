@@ -31,7 +31,8 @@ MOBILE_DIR="$SCRIPT_DIR/mobile"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 
 # ── Section 1b: Start emulator if not running ──────────────────────────────
-if ! ~/Android/Sdk/platform-tools/adb devices | grep -q "emulator"; then
+# Match only lines like "emulator-5554   device" (excludes offline/unauthorized)
+if ! ~/Android/Sdk/platform-tools/adb devices | grep -qE "^emulator-[0-9]+[[:space:]]+device$"; then
   echo "Starting Pixel_3a_API_36 emulator..."
   ~/Android/Sdk/emulator/emulator -avd Pixel_3a_API_36 -no-snapshot-load &
   echo "Waiting for emulator to boot..."
@@ -42,11 +43,22 @@ if ! ~/Android/Sdk/platform-tools/adb devices | grep -q "emulator"; then
   done
   echo 'Emulator ready.'
   sleep 3
+else
+  echo "Emulator already running — skipping launch."
 fi
 
-# Kill any existing Metro on 8081
-kill $(lsof -t -i:8081) 2>/dev/null
-sleep 1
+# Kill only the Metro process listening on 8081, not clients connected to it
+# (lsof -sTCP:LISTEN filters to listener only, so the emulator connection is preserved)
+METRO_PID=$(lsof -t -i:8081 -sTCP:LISTEN 2>/dev/null)
+if [ -n "$METRO_PID" ]; then
+  echo "Killing existing Metro (PID $METRO_PID)..."
+  kill "$METRO_PID"
+  sleep 1
+fi
+
+# Pre-create directories that native libraries generate at Android build time
+# so Metro's file watcher doesn't fail before the build runs
+mkdir -p "$MOBILE_DIR/node_modules/react-native-document-picker/android/build/generated/res/pngs/debug"
 
 # ── Section 2: Metro bundler ─────────────────────────────────────────────────
 echo "Starting Metro bundler in Terminal 1..."
@@ -73,6 +85,10 @@ echo "Opening Terminal 3 — will wait for Metro then launch Android emulator...
 gnome-terminal --title="Android Emulator" -- bash -c "
   export PATH=\"$HOME/.npm-global/bin:\$PATH\"
   cd \"$MOBILE_DIR\"
+  echo 'Cleaning stale Android build cache...'
+  rm -rf android/app/.cxx
+  rm -rf android/app/build/kotlin
+  cd android && ./gradlew clean && cd ..
   echo 'Waiting for Metro to be ready on port 8081...'
   until curl -s http://localhost:8081/status | grep -q 'packager-status:running' 2>/dev/null; do
     sleep 2
