@@ -108,12 +108,16 @@ export function TelemetryScreen() {
           <View style={s.section}>
             <Text style={s.sectionTitle}>Decoded values</Text>
             {[
-              { label: 'Speed',       value: telemetry.speed_mph,    unit: 'mph' },
-              { label: 'Battery',     value: telemetry.battery_pct,  unit: '%' },
-              { label: 'Voltage',     value: telemetry.battery_v,    unit: 'V' },
-              { label: 'Assist',      value: telemetry.assist_level, unit: '' },
-              { label: 'Motor',       value: telemetry.motor_w,      unit: 'W' },
-              { label: 'Cadence',     value: telemetry.cadence_rpm,  unit: 'rpm' },
+              { label: 'Speed',        value: telemetry.speed_mph,    unit: ' mph' },
+              { label: 'Speed (kph)',  value: telemetry.speed_kph,    unit: ' km/h' },
+              { label: 'Voltage',      value: telemetry.battery_v,    unit: ' V' },
+              { label: 'Battery',      value: telemetry.battery_pct,  unit: '%' },
+              { label: 'Assist',       value: telemetry.assist_level, unit: '' },
+              { label: 'Odometer',     value: telemetry.odometer_raw, unit: '' },
+              { label: 'Load (TBD)',   value: telemetry.load_raw,     unit: '' },
+              { label: 'Word2 (TBD)', value: telemetry.word2_raw,    unit: '' },
+              { label: 'Motor',        value: telemetry.motor_w,      unit: ' W' },
+              { label: 'Cadence',      value: telemetry.cadence_rpm,  unit: ' rpm' },
             ].map(({ label, value, unit }) => (
               <View key={label} style={s.metricRow}>
                 <Text style={s.metricLabel}>{label}</Text>
