@@ -71,6 +71,8 @@ export async function loadState(): Promise<AppState | null> {
     const state: AppState = {
       // Bike identity
       make:             bikeRow.make        ?? DEFAULT_STATE.make,
+      model:            bikeRow.model       ?? DEFAULT_STATE.model,
+      nickname:         bikeRow.nickname    ?? DEFAULT_STATE.nickname,
       year:             bikeRow.year        ?? DEFAULT_STATE.year,
       voltage:          bikeRow.voltage     ?? DEFAULT_STATE.voltage,
       capacityAh:       bikeRow.capacity_ah ?? DEFAULT_STATE.capacityAh,
@@ -252,16 +254,17 @@ async function saveBikeState(db: SQLiteDatabase, s: AppState): Promise<void> {
   return new Promise((resolve, reject) => {
     db.executeSql(
       `INSERT OR REPLACE INTO bike_state (
-        id, make, year, voltage, capacity_ah, motor_watts, capacity_wh,
+        id, make, model, nickname, year, voltage, capacity_ah, motor_watts, capacity_wh,
         weight_lbs, tire_size, top_speed_mph,
         odometer_miles, battery_pct, ride_mode,
         charger_amps, charge_target_pct, tire_size_from_mod,
         footwear, footwear_custom, helmet, gloves, jacket, cargo, lock,
         rig_device_name, rig_mount_type, rig_primary_use, rig_online,
         updated_at
-      ) VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      ) VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        s.make, s.year, s.voltage, s.capacityAh, s.motorWatts,
+        s.make, s.model, s.nickname,
+        s.year, s.voltage, s.capacityAh, s.motorWatts,
         s.voltage * s.capacityAh,
         s.weightLbs, s.tireSize, s.topSpeed,
         s.odometer, s.battery, s.rideMode,

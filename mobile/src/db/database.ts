@@ -37,7 +37,15 @@ async function applySchema(db: SQLiteDatabase): Promise<void> {
     applied_at TEXT DEFAULT (datetime('now')),
     description TEXT
   )`);
-  const migrations = [{ version: 1, description: 'Initial schema', sql: EBIKE_SCHEMA }];
+  const migrations = [
+    { version: 1, description: 'Initial schema', sql: EBIKE_SCHEMA },
+    {
+      version: 2,
+      description: 'Add model and nickname to bike_state',
+      sql: `ALTER TABLE bike_state ADD COLUMN model TEXT;
+            ALTER TABLE bike_state ADD COLUMN nickname TEXT NOT NULL DEFAULT ''`,
+    },
+  ];
   const [res] = await db.executeSql('SELECT MAX(version) AS v FROM _schema_version');
   const currentVersion = res.rows.item(0)?.v ?? 0;
   for (const m of migrations.filter(m => m.version > currentVersion)) {

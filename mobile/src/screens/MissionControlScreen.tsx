@@ -6,6 +6,7 @@ import { saveState, loadState } from '../utils/storage';
 import { callAPI, nowTime, WELCOME_MESSAGE } from '../utils/ai';
 
 import { SetupWizard } from '../components/SetupWizard';
+import { EditBikeScreen } from './EditBikeScreen';
 import { Header } from '../components/Header';
 import { MetricsRows } from '../components/MetricsRows';
 import { TabBar } from '../components/TabBar';
@@ -21,6 +22,7 @@ export function MissionControlScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
   useEffect(() => {
     loadState().then(saved => {
@@ -150,9 +152,19 @@ export function MissionControlScreen() {
     return <SetupWizard onComplete={handleWizardComplete} />;
   }
 
+  if (showEditProfile) {
+    return (
+      <EditBikeScreen
+        state={state}
+        update={update}
+        onBack={() => setShowEditProfile(false)}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Header make={state.make} />
+      <Header make={state.make} model={state.model} nickname={state.nickname} />
       <MetricsRows state={state} />
       <TabBar active={activeTab} onSelect={setActiveTab} />
 
@@ -167,7 +179,13 @@ export function MissionControlScreen() {
           <GearTab state={state} update={update} />
         )}
         {activeTab === 'ops' && (
-          <OpsTab state={state} update={update} onMissionAction={handleOpsAction} onReset={handleReset} />
+          <OpsTab
+              state={state}
+              update={update}
+              onMissionAction={handleOpsAction}
+              onReset={handleReset}
+              onEditProfile={() => setShowEditProfile(true)}
+            />
         )}
         {activeTab === 'chat' && (
           <ChatPanel

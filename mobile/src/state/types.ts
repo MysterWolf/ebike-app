@@ -63,6 +63,8 @@ export interface AppState {
   modLog: ModLogEntry[];
   tireSizeFromMod: boolean;
   make: string;
+  model: string;
+  nickname: string;
   year: number;
   voltage: number;
   capacityAh: number;
@@ -99,7 +101,9 @@ export const DEFAULT_STATE: AppState = {
   serviceLog: [],
   modLog: [],
   tireSizeFromMod: false,
-  make: 'Movcan V70',
+  make: 'Movcan',
+  model: 'V70',
+  nickname: '',
   year: 2024,
   voltage: 52,
   capacityAh: 20,

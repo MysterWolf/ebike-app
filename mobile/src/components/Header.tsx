@@ -4,9 +4,11 @@ import { C, MONO } from '../theme/colors';
 
 interface Props {
   make: string;
+  model: string;
+  nickname: string;
 }
 
-export function Header({ make }: Props) {
+export function Header({ make, model, nickname }: Props) {
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -22,7 +24,9 @@ export function Header({ make }: Props) {
     <View style={styles.header}>
       <View>
         <Text style={styles.title}>E-BIKE RANGE ANALYST</Text>
-        <Text style={styles.subtitle}>{make} — Mission Control</Text>
+        <Text style={styles.subtitle}>
+          {nickname || (model ? `${make} ${model}` : make)} — Mission Control
+        </Text>
       </View>
       <Animated.View style={[styles.dot, { opacity: pulse }]} />
     </View>

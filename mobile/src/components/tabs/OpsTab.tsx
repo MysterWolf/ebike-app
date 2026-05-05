@@ -18,6 +18,7 @@ import { CollapsibleSection } from '../CollapsibleSection';
 import { C, MONO } from '../../theme/colors';
 import {
   AppState,
+  DEFAULT_STATE,
   TirePressureEntry,
   ServiceLogEntry,
   ModLogEntry,
@@ -31,6 +32,7 @@ interface Props {
   update: (u: Partial<AppState>) => void;
   onMissionAction: (text: string) => void;
   onReset: () => void;
+  onEditProfile: () => void;
 }
 
 interface ChecklistItem {
@@ -97,7 +99,7 @@ function OpsButton({ icon, label, onPress }: { icon: string; label: string; onPr
   );
 }
 
-export function OpsTab({ state, update, onMissionAction, onReset }: Props) {
+export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile }: Props) {
   const [dataLoading, setDataLoading] = useState<'export' | 'import' | null>(null);
   const [frontPsiInput, setFrontPsiInput] = useState('');
   const [rearPsiInput, setRearPsiInput] = useState('');
@@ -110,6 +112,8 @@ export function OpsTab({ state, update, onMissionAction, onReset }: Props) {
   const [modComponent, setModComponent] = useState('');
   const [modNotes, setModNotes] = useState('');
   const [modComponentError, setModComponentError] = useState(false);
+
+  const displayName = state.nickname || (state.model ? `${state.make} ${state.model}` : state.make);
 
   const checklist = state.checklistState ?? {};
   const pressureLog = [...(state.tirePressureLog ?? [])].reverse().slice(0, 5);
@@ -291,6 +295,25 @@ export function OpsTab({ state, update, onMissionAction, onReset }: Props) {
     } finally {
       setDataLoading(null);
     }
+  }
+
+  function handleResetBikeProfile() {
+    Alert.alert(
+      'Reset Bike Profile',
+      'Restore Make, Model, and Nickname to defaults? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => update({
+            make: DEFAULT_STATE.make,
+            model: DEFAULT_STATE.model,
+            nickname: DEFAULT_STATE.nickname,
+          }),
+        },
+      ],
+    );
   }
 
   function handleReset() {
@@ -613,6 +636,42 @@ export function OpsTab({ state, update, onMissionAction, onReset }: Props) {
             <Text style={styles.unlockCta}>Add your Anthropic API key in the CHAT tab to activate.</Text>
           </View>
         )}
+        </CollapsibleSection>
+
+        <Divider />
+
+        {/* ── BIKE PROFILE ── */}
+        <CollapsibleSection title="BIKE PROFILE" defaultOpen={true}>
+
+        <View style={styles.profileCard}>
+          <Text style={styles.profileName}>{displayName}</Text>
+          {state.nickname ? (
+            <Text style={styles.profileSub}>{state.make} {state.model}</Text>
+          ) : null}
+        </View>
+
+        <TouchableOpacity style={styles.dataBtn} onPress={onEditProfile} activeOpacity={0.7}>
+          <Text style={styles.dataBtnIcon}>✎</Text>
+          <View style={styles.dataBtnContent}>
+            <Text style={styles.dataBtnLabel}>EDIT BIKE PROFILE</Text>
+            <Text style={styles.dataBtnSub}>Update make, model, and nickname</Text>
+          </View>
+          <Text style={styles.dataBtnArrow}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.dataBtn, styles.dataBtnDestructive]}
+          onPress={handleResetBikeProfile}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.dataBtnIcon, styles.dataBtnIconDestructive]}>⊘</Text>
+          <View style={styles.dataBtnContent}>
+            <Text style={[styles.dataBtnLabel, styles.dataBtnLabelDestructive]}>RESET BIKE PROFILE</Text>
+            <Text style={styles.dataBtnSub}>Restore default make, model, and nickname</Text>
+          </View>
+          <Text style={styles.dataBtnArrow}>›</Text>
+        </TouchableOpacity>
+
         </CollapsibleSection>
 
         <Divider />
@@ -1041,6 +1100,19 @@ const styles = StyleSheet.create({
   unlockTitle: { fontFamily: MONO, fontSize: 12, fontWeight: '700', letterSpacing: 1, color: C.text },
   unlockBody: { fontSize: 12, color: C.textSec, textAlign: 'center', lineHeight: 18, marginTop: 2 },
   unlockCta: { fontFamily: MONO, fontSize: 10, color: C.accent, textAlign: 'center', marginTop: 4, letterSpacing: 0.3 },
+
+  // Bike profile
+  profileCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  profileName: { fontFamily: MONO, fontSize: 14, fontWeight: '700', color: C.text },
+  profileSub: { fontFamily: MONO, fontSize: 10, color: C.textSec, marginTop: 2 },
 
   // Data management
   dataBtn: {
