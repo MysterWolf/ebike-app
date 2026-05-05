@@ -1,4 +1,13 @@
 {
   "name": "EBikeApp",
-  "displayName": "E-Bike Companion"
+  "displayName": "E-Bike Companion",
+  "expo": {
+    "icon": "./assets/ebike-icon.png",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/ebike-icon.png",
+        "backgroundColor": "#0A1628"
+      }
+    }
+  }
 }
