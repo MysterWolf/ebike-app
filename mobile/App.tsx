@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { MissionControlScreen } from './src/screens/MissionControlScreen';
 import { TelemetryScreen } from './src/screens/TelemetryScreen';
+import { BleProvider } from './src/context/BleContext';
 import { C } from './src/theme/colors';
 import { initDb } from './src/db/database';
 import { migrateJsonToSqlite } from './src/db/migrate_json';
@@ -61,21 +62,30 @@ function App(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
-      <View style={styles.tabBar}>
-        <Pressable style={[styles.tab, activeTab === 'mission' && styles.tabActive]}
-          onPress={() => setActiveTab('mission')}>
-          <Text style={[styles.tabText, activeTab === 'mission' && styles.tabTextActive]}>Mission</Text>
-        </Pressable>
-        <Pressable style={[styles.tab, activeTab === 'telemetry' && styles.tabActive]}
-          onPress={() => setActiveTab('telemetry')}>
-          <Text style={[styles.tabText, activeTab === 'telemetry' && styles.tabTextActive]}>Telemetry</Text>
-        </Pressable>
-      </View>
-      {activeTab === 'mission' ? <MissionControlScreen /> : <TelemetryScreen />}
-      {migMsg && <MigrationToast message={migMsg} onDismiss={dismissMigMsg} />}
-    </SafeAreaView>
+    <BleProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
+        <View style={styles.tabBar}>
+          <Pressable style={[styles.tab, activeTab === 'mission' && styles.tabActive]}
+            onPress={() => setActiveTab('mission')}>
+            <Text style={[styles.tabText, activeTab === 'mission' && styles.tabTextActive]}>Mission</Text>
+          </Pressable>
+          <Pressable style={[styles.tab, activeTab === 'telemetry' && styles.tabActive]}
+            onPress={() => setActiveTab('telemetry')}>
+            <Text style={[styles.tabText, activeTab === 'telemetry' && styles.tabTextActive]}>Telemetry</Text>
+          </Pressable>
+        </View>
+        {/* Both screens stay mounted — display:none hides the inactive one
+            without unmounting it, so BLE state and connection survive tab switches. */}
+        <View style={[styles.screen, activeTab !== 'mission'   && styles.hidden]}>
+          <MissionControlScreen />
+        </View>
+        <View style={[styles.screen, activeTab !== 'telemetry' && styles.hidden]}>
+          <TelemetryScreen />
+        </View>
+        {migMsg && <MigrationToast message={migMsg} onDismiss={dismissMigMsg} />}
+      </SafeAreaView>
+    </BleProvider>
   );
 }
 
@@ -98,6 +108,8 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomWidth: 2, borderBottomColor: '#1D6B3E' },
   tabText: { fontSize: 13, color: '#6B7A99' },
   tabTextActive: { color: '#1D6B3E', fontWeight: '500' },
+  screen:      { flex: 1 },
+  hidden:      { display: 'none' },
   container:   { flex: 1, backgroundColor: C.surface },
   center:      { alignItems: 'center', justifyContent: 'center', gap: 12 },
   errorText:   { fontSize: 17, color: '#B85450', textAlign: 'center', lineHeight: 26 },

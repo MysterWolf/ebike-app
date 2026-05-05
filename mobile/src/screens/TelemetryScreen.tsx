@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Platform,
 } from 'react-native';
-import { BleService, V70Telemetry, BleStatus } from '../services/BleService';
+import { BleStatus } from '../services/BleService';
+import { useBleContext } from '../context/BleContext';
 
 const C = {
   bg: '#0A0E1A', surface: '#141824', border: '#1E2535',
@@ -41,39 +42,15 @@ function ByteGrid({ hex, label }: { hex: string; label: string }) {
 }
 
 export function TelemetryScreen() {
-  const [status,     setStatus]     = useState<BleStatus>('idle');
-  const [statusMsg,  setStatusMsg]  = useState('');
-  const [telemetry,  setTelemetry]  = useState<V70Telemetry | null>(null);
-  const [log,        setLog]        = useState<string[]>([]);
-
-  const addLog = useCallback((msg: string) => {
-    setLog(prev => [`${new Date().toLocaleTimeString()} ${msg}`, ...prev.slice(0, 49)]);
-  }, []);
-
-  useEffect(() => {
-    BleService.setStatusCallback((s, msg) => {
-      setStatus(s);
-      setStatusMsg(msg ?? '');
-      addLog(`Status: ${s}${msg ? ' — ' + msg : ''}`);
-    });
-    BleService.setTelemetryCallback((t) => {
-      setTelemetry({ ...t });
-      if (t.raw_notify_1) addLog(`N1: ${t.raw_notify_1}`);
-      if (t.raw_notify_2) addLog(`N2: ${t.raw_notify_2}`);
-    });
-    return () => {
-      BleService.disconnect();
-    };
-  }, [addLog]);
+  const { status, statusMsg, telemetry, log, connect, disconnect } = useBleContext();
 
   const handleConnect = useCallback(async () => {
     if (status === 'connected') {
-      await BleService.disconnect();
+      await disconnect();
     } else {
-      addLog('Starting scan for V70...');
-      await BleService.connect();
+      await connect();
     }
-  }, [status, addLog]);
+  }, [status, connect, disconnect]);
 
   const btnLabel = status === 'connected' ? 'Disconnect'
     : status === 'scanning' ? 'Scanning...'
