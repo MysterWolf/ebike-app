@@ -106,9 +106,6 @@ export function TelemetryScreen() {
           </View>
         )}
 
-        {telemetry?.raw_notify_1 && (
-          <ByteGrid hex={telemetry.raw_notify_1} label="Notify 1 (12FF69A3)" />
-        )}
         {telemetry?.raw_notify_2 && (
           <ByteGrid hex={telemetry.raw_notify_2} label="Notify 2 (12FF69A4)" />
         )}

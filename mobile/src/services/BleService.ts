@@ -18,7 +18,6 @@ import { Buffer } from 'buffer';
 const V70_SERVICE      = '12FF69A0-73AE-11EE-B962-0002A5D5C51B';
 const V70_WRITE_1      = '12FF69A1-73AE-11EE-B962-0002A5D5C51B';
 const V70_WRITE_2      = '12FF69A2-73AE-11EE-B962-0002A5D5C51B';
-const V70_NOTIFY_1     = '12FF69A3-73AE-11EE-B962-0002A5D5C51B';
 const V70_NOTIFY_2     = '12FF69A4-73AE-11EE-B962-0002A5D5C51B';
 const V70_READ         = '12FF69A5-73AE-11EE-B962-0002A5D5C51B';
 const V70_DEVICE_NAME  = 'V70';
@@ -41,8 +40,7 @@ export interface V70Telemetry {
   // Pending — byte map not yet identified in capture
   motor_w?:        number | null;
   cadence_rpm?:    number | null;
-  // Raw payloads for debugging
-  raw_notify_1?:   string;
+  // Raw payload for debugging
   raw_notify_2?:   string;
   timestamp:       number;
 }
@@ -80,18 +78,6 @@ export type StatusCallback    = (status: BleStatus, message?: string) => void;
 
 const TELEMETRY_HEADER = 0x3AA0;
 const KPH_TO_MPH       = 0.621371;
-
-// A3 never fired in the GATT capture — return raw in case it activates in future sessions
-function decodeNotify1(base64: string): Partial<V70Telemetry> {
-  try {
-    const buf = Buffer.from(base64, 'base64');
-    console.log('[BLE] Notify1 (A3) raw:', buf.toString('hex'));
-    return { raw_notify_1: buf.toString('hex') };
-  } catch (err) {
-    console.error('[BLE] Notify1 decode error:', err);
-    return { raw_notify_1: base64 };
-  }
-}
 
 function decodeNotify2(base64: string): Partial<V70Telemetry> {
   try {
@@ -271,22 +257,11 @@ class V70BleService {
   private setupNotifications() {
     if (!this.device) return;
 
-    // Subscribe to notify characteristic 1 (primary telemetry)
-    this.device.monitorCharacteristicForService(
-      V70_SERVICE, V70_NOTIFY_1,
-      (error: BleError | null, char: Characteristic | null) => {
-        if (error) {
-          console.error('[BLE] Notify1 error:', error);
-          return;
-        }
-        if (char?.value) {
-          const decoded = decodeNotify1(char.value);
-          this.mergeTelemetry(decoded);
-        }
-      }
-    );
+    // A3 (V70_NOTIFY_1) omitted — GATT capture confirmed it never fires across
+    // a full ride session. Subscribing to a silent notifying characteristic
+    // corrupts the Android GATT queue and stalls the A4 subscription.
 
-    // Subscribe to notify characteristic 2 (secondary telemetry)
+    // Subscribe to notify characteristic 2 (sole telemetry source)
     this.device.monitorCharacteristicForService(
       V70_SERVICE, V70_NOTIFY_2,
       (error: BleError | null, char: Characteristic | null) => {

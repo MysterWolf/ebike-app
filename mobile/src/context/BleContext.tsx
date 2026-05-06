@@ -30,7 +30,6 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
     });
     BleService.setTelemetryCallback((t) => {
       setTelemetry({ ...t });
-      if (t.raw_notify_1) addLog(`N1: ${t.raw_notify_1}`);
       if (t.raw_notify_2) addLog(`N2: ${t.raw_notify_2}`);
     });
     // No cleanup disconnect here — connection must survive tab switches.
