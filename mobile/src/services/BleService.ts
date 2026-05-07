@@ -270,6 +270,7 @@ class V70BleService {
     this.device.monitorCharacteristicForService(
       V70_SERVICE, V70_NOTIFY_2,
       (error: BleError | null, char: Characteristic | null) => {
+        console.log('[BLE] RAW A4 PACKET:', char?.value, 'timestamp:', Date.now());
         if (error) {
           console.error('[BLE] Notify2 error:', error);
           return;
