@@ -11,8 +11,11 @@
 // ============================================================
 
 import { BleManager, Device, Characteristic, BleError } from 'react-native-ble-plx';
-import { Platform, PermissionsAndroid } from 'react-native';
+import { Platform, PermissionsAndroid, NativeModules } from 'react-native';
 import { Buffer } from 'buffer';
+
+const BleFS: { start: () => void; stop: () => void } | null =
+  Platform.OS === 'android' ? NativeModules.BleForegroundService ?? null : null;
 
 // V70 UUIDs
 const V70_SERVICE      = '12FF69A0-73AE-11EE-B962-0002A5D5C51B';
@@ -216,6 +219,7 @@ class V70BleService {
             await connected.discoverAllServicesAndCharacteristics();
             this.device = connected;
             this.setStatus('connected');
+            BleFS?.start();
             this.setupNotifications();
             this.readStaticInfo();
             resolve(true);
@@ -243,6 +247,7 @@ class V70BleService {
       try { await this.device.cancelConnection(); } catch {}
       this.device = null;
     }
+    BleFS?.stop();
     this.setStatus('disconnected');
   }
 
@@ -280,6 +285,7 @@ class V70BleService {
     this.device.onDisconnected((error, device) => {
       console.log('[BLE] Disconnected:', error?.message ?? 'clean disconnect');
       this.device = null;
+      BleFS?.stop();
       this.setStatus('disconnected');
     });
   }
