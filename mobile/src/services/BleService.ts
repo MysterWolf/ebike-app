@@ -86,22 +86,25 @@ function decodeNotify2(base64: string): Partial<V70Telemetry> {
   try {
     const buf = Buffer.from(base64, 'base64');
 
-    // --- Mode-change packet: ASCII "+MODE=N" ---
+    // --- Mode-change packet: ASCII "+MODE=N" (7 bytes, starts with '+' = 0x2B) ---
     if (buf[0] === 0x2B) {
       const ascii = buf.toString('ascii').trim();
       if (ascii.startsWith('+MODE=')) {
         const level = parseInt(ascii.slice(6), 10);
         if (!isNaN(level)) {
           console.log('[BLE] Assist level ->', level);
-          return { assist_level: level };
+          return { assist_level: level, raw_notify_2: buf.toString('hex') };
         }
       }
+      console.warn('[BLE] Unknown ASCII packet on A4:', ascii);
       return { raw_notify_2: buf.toString('hex') };
     }
 
-    // --- 16-byte telemetry packet ---
+    // --- 16-byte telemetry packet (header 0x3AA0, confirmed by GATT capture 3595/3595) ---
     if (buf.length !== 16 || buf.readUInt16BE(0) !== TELEMETRY_HEADER) {
-      console.warn('[BLE] Unexpected A4 packet:', buf.toString('hex'));
+      console.warn('[BLE] UNKNOWN packet format — length:', buf.length,
+        'header:', buf.length >= 2 ? '0x' + buf.readUInt16BE(0).toString(16).toUpperCase() : 'n/a',
+        'hex:', buf.toString('hex'));
       return { raw_notify_2: buf.toString('hex') };
     }
 
@@ -110,16 +113,16 @@ function decodeNotify2(base64: string): Partial<V70Telemetry> {
     for (let i = 0; i < 15; i++) xor ^= buf[i];
     const checksum_ok = xor === buf[15];
     if (!checksum_ok) {
-      console.warn('[BLE] Checksum mismatch on packet:', buf.toString('hex'));
+      console.warn('[BLE] Checksum mismatch:', buf.toString('hex'));
     }
 
-    const voltageRaw = buf.readUInt16BE(2);   // word[1]
-    const word2      = buf.readUInt16BE(4);   // word[2] — TBD
-    const loadRaw    = buf.readUInt16BE(6);   // word[3] — current or temp TBD
-    // word[4] offset 8 is always 0x0000 — skip
-    const odomRaw    = buf.readUInt16BE(10);  // word[5]
-    const speedRaw   = buf.readUInt16BE(12);  // word[6]
-    // word[7] offset 14 is the checksum — already consumed above
+    const voltageRaw      = buf.readUInt16BE(2);   // word[1]: voltage raw
+    const word2_raw       = buf.readUInt16BE(4);   // word[2]: unknown; oscillates ±1, net decrease over session (possible SoC×10)
+    const sessionCounter  = buf.readUInt16BE(6);   // word[3]: monotonically increasing; ~1 per 18s while assist active
+    // word[4] at offset 8 is always 0x0000 — confirmed GATT capture 3595/3595
+    const odomRaw         = buf.readUInt16BE(10);  // word[5]: lifetime odometer raw
+    const speedRaw        = buf.readUInt16BE(12);  // word[6]: speed raw
+    // byte[14] always 0x00; byte[15] is checksum — already consumed above
 
     const speed_kph = speedRaw / 10;
 
@@ -128,8 +131,8 @@ function decodeNotify2(base64: string): Partial<V70Telemetry> {
       speed_mph:    parseFloat((speed_kph * KPH_TO_MPH).toFixed(2)),
       battery_v:    parseFloat((voltageRaw / 100).toFixed(2)),
       odometer_raw: odomRaw,
-      load_raw:     loadRaw,
-      word2_raw:    word2,
+      load_raw:     sessionCounter,   // load_raw kept for UI compat; actual meaning: session activation counter
+      word2_raw,
       checksum_ok,
       raw_notify_2: buf.toString('hex'),
     };
