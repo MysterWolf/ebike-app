@@ -1,8 +1,9 @@
 import React, { useCallback } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, Platform,
+  View, Text, ScrollView, Pressable, StyleSheet, Platform, Share, Alert,
 } from 'react-native';
-import { BleStatus } from '../services/BleService';
+import RNFS from 'react-native-fs';
+import { BleStatus, BLE_LOG_FILE } from '../services/BleService';
 import { useBleContext } from '../context/BleContext';
 
 const C = {
@@ -52,6 +53,15 @@ export function TelemetryScreen() {
     }
   }, [status, connect, disconnect]);
 
+  const handleShareLog = useCallback(async () => {
+    try {
+      const content = await RNFS.readFile(BLE_LOG_FILE, 'utf8');
+      await Share.share({ title: 'BLE Diagnostic Log', message: content });
+    } catch (err: any) {
+      Alert.alert('Log unavailable', 'Connect to the bike first to generate a log.\n\n' + err.message);
+    }
+  }, []);
+
   const btnLabel = status === 'connected' ? 'Disconnect'
     : status === 'scanning' ? 'Scanning...'
     : status === 'connecting' ? 'Connecting...'
@@ -79,6 +89,10 @@ export function TelemetryScreen() {
             btnDisabled && { opacity: 0.5 }
           ]}>
           <Text style={s.connectBtnText}>{btnLabel}</Text>
+        </Pressable>
+
+        <Pressable onPress={handleShareLog} style={s.logBtn}>
+          <Text style={s.logBtnText}>Share Diagnostic Log</Text>
         </Pressable>
 
         {telemetry && (
@@ -137,6 +151,9 @@ const s = StyleSheet.create({
   connectBtn: { backgroundColor: C.accent, borderRadius: 8,
     paddingVertical: 14, alignItems: 'center' },
   connectBtnText: { color: C.white, fontSize: 15, fontWeight: '500' },
+  logBtn: { borderRadius: 8, paddingVertical: 10, alignItems: 'center',
+    borderWidth: 0.5, borderColor: C.border },
+  logBtnText: { color: C.muted, fontSize: 13 },
   section: { backgroundColor: C.surface, borderRadius: 10,
     borderWidth: 0.5, borderColor: C.border, padding: 14, gap: 8 },
   sectionTitle: { fontSize: 11, color: C.muted, letterSpacing: 0.6,

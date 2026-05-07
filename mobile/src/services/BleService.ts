@@ -13,6 +13,24 @@
 import { BleManager, Device, Characteristic, BleError } from 'react-native-ble-plx';
 import { Platform, PermissionsAndroid, NativeModules } from 'react-native';
 import { Buffer } from 'buffer';
+import RNFS from 'react-native-fs';
+
+// ---- File-based diagnostic logger ----
+export const BLE_LOG_FILE = RNFS.ExternalDirectoryPath + '/ble-diagnostic.txt';
+
+function fts(): string {
+  return new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+}
+
+function fileLog(msg: string): void {
+  RNFS.appendFile(BLE_LOG_FILE, `[${fts()}] ${msg}\n`, 'utf8').catch(() => {});
+}
+
+async function initLogFile(): Promise<void> {
+  try {
+    await RNFS.writeFile(BLE_LOG_FILE, `[${fts()}] LOG STARTED\n`, 'utf8');
+  } catch {}
+}
 
 const BleFS: { start: () => void; stop: () => void } | null =
   Platform.OS === 'android' ? NativeModules.BleForegroundService ?? null : null;
@@ -102,9 +120,11 @@ function decodeNotify2(base64: string): Partial<V70Telemetry> {
 
     // --- 16-byte telemetry packet (header 0x3AA0, confirmed by GATT capture 3595/3595) ---
     if (buf.length !== 16 || buf.readUInt16BE(0) !== TELEMETRY_HEADER) {
-      console.warn('[BLE] UNKNOWN packet format — length:', buf.length,
-        'header:', buf.length >= 2 ? '0x' + buf.readUInt16BE(0).toString(16).toUpperCase() : 'n/a',
-        'hex:', buf.toString('hex'));
+      const reason = buf.length !== 16
+        ? `wrong length: got ${buf.length} expected 16`
+        : `wrong header: got 0x${buf.readUInt16BE(0).toString(16).toUpperCase()} expected 0x3AA0`;
+      console.warn('[BLE] DECODE REJECTED:', reason, 'hex:', buf.toString('hex'));
+      fileLog(`DECODE REJECTED: ${reason} raw:${buf.toString('hex')}`);
       return { raw_notify_2: buf.toString('hex') };
     }
 
@@ -114,6 +134,7 @@ function decodeNotify2(base64: string): Partial<V70Telemetry> {
     const checksum_ok = xor === buf[15];
     if (!checksum_ok) {
       console.warn('[BLE] Checksum mismatch:', buf.toString('hex'));
+      fileLog(`DECODE REJECTED: XOR check failed raw:${buf.toString('hex')}`);
     }
 
     const voltageRaw      = buf.readUInt16BE(2);   // word[1]: voltage raw
@@ -196,9 +217,12 @@ class V70BleService {
   }
 
   async connect(): Promise<boolean> {
+    await initLogFile();
+    fileLog('SCAN STARTED');
     this.setStatus('scanning');
     const hasPerms = await this.requestPermissions();
     if (!hasPerms) {
+      fileLog('ERROR: Bluetooth permissions denied');
       this.setStatus('error', 'Bluetooth permissions denied');
       return false;
     }
@@ -207,6 +231,7 @@ class V70BleService {
       this.manager.startDeviceScan(null, null, async (error, device) => {
         if (error) {
           console.error('[BLE] Scan error:', error);
+          fileLog(`ERROR: Scan error — ${error.message}`);
           this.setStatus('error', error.message);
           resolve(false);
           return;
@@ -214,6 +239,7 @@ class V70BleService {
 
         if (device?.name === V70_DEVICE_NAME || device?.localName === V70_DEVICE_NAME) {
           console.log('[BLE] Found V70:', device.id);
+          fileLog(`DEVICE FOUND: ${device.name ?? device.localName} id:${device.id}`);
           this.manager.stopDeviceScan();
           this.setStatus('connecting');
 
@@ -221,6 +247,7 @@ class V70BleService {
             const connected = await device.connect({ autoConnect: false });
             await connected.discoverAllServicesAndCharacteristics();
             this.device = connected;
+            fileLog('CONNECTED');
             this.setStatus('connected');
             BleFS?.start();
             this.setupNotifications();
@@ -228,6 +255,7 @@ class V70BleService {
             resolve(true);
           } catch (err: any) {
             console.error('[BLE] Connect error:', err);
+            fileLog(`ERROR: Connect failed — ${err.message}`);
             this.setStatus('error', err.message);
             resolve(false);
           }
@@ -238,6 +266,7 @@ class V70BleService {
       setTimeout(() => {
         if (this.status === 'scanning') {
           this.manager.stopDeviceScan();
+          fileLog('ERROR: Scan timeout — V70 not found');
           this.setStatus('error', 'V70 not found — is the bike powered on?');
           resolve(false);
         }
@@ -250,6 +279,7 @@ class V70BleService {
       try { await this.device.cancelConnection(); } catch {}
       this.device = null;
     }
+    fileLog('DISCONNECTED: user initiated');
     BleFS?.stop();
     this.setStatus('disconnected');
   }
@@ -269,17 +299,25 @@ class V70BleService {
     // a full ride session. Subscribing to a silent notifying characteristic
     // corrupts the Android GATT queue and stalls the A4 subscription.
 
+    fileLog('SETUP NOTIFICATIONS CALLED');
+
     // Subscribe to notify characteristic 2 (sole telemetry source)
+    fileLog('MONITOR REGISTERED FOR A4');
     this.device.monitorCharacteristicForService(
       V70_SERVICE, V70_NOTIFY_2,
       (error: BleError | null, char: Characteristic | null) => {
-        console.log('[BLE] RAW A4 PACKET:', char?.value, 'timestamp:', Date.now());
+        const rawB64 = char?.value ?? null;
+        const byteLen = rawB64 ? Buffer.from(rawB64, 'base64').length : 0;
+        console.log('[BLE] RAW A4 PACKET:', rawB64, 'timestamp:', Date.now());
+        fileLog(`RAW A4 PACKET: ${rawB64 ?? 'null'} len:${byteLen}`);
         if (error) {
           console.error('[BLE] Notify2 error:', error);
+          fileLog(`ERROR: A4 monitor — ${error.message} (code:${error.errorCode})`);
           return;
         }
-        if (char?.value) {
-          const decoded = decodeNotify2(char.value);
+        if (rawB64) {
+          const decoded = decodeNotify2(rawB64);
+          fileLog(`DECODED: ${JSON.stringify(decoded)}`);
           this.mergeTelemetry(decoded);
         }
       }
@@ -287,7 +325,9 @@ class V70BleService {
 
     // Watch for disconnection
     this.device.onDisconnected((error, device) => {
-      console.log('[BLE] Disconnected:', error?.message ?? 'clean disconnect');
+      const reason = error?.message ?? 'clean disconnect';
+      console.log('[BLE] Disconnected:', reason);
+      fileLog(`DISCONNECTED: ${reason}`);
       this.device = null;
       BleFS?.stop();
       this.setStatus('disconnected');
