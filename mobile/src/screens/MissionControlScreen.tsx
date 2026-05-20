@@ -4,6 +4,7 @@ import { C } from '../theme/colors';
 import { AppState, DEFAULT_STATE, Message, Tab } from '../state/types';
 import { saveState, loadState } from '../utils/storage';
 import { callAPI, nowTime, WELCOME_MESSAGE } from '../utils/ai';
+import { useBleContext } from '../context/BleContext';
 
 import { SetupWizard } from '../components/SetupWizard';
 import { EditBikeScreen } from './EditBikeScreen';
@@ -24,10 +25,13 @@ export function MissionControlScreen() {
   const [showWizard, setShowWizard] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
+  const { setRideMode } = useBleContext();
+
   useEffect(() => {
     loadState().then(saved => {
       if (saved) {
         const merged: AppState = { ...DEFAULT_STATE, ...saved };
+        setRideMode(merged.rideMode); // sync initial rideMode to auto-ride tracker
         setStateRaw(merged);
         const sysMsg: Message = {
           role: 'system',
@@ -57,12 +61,13 @@ export function MissionControlScreen() {
   }, []);
 
   const update = useCallback((updates: Partial<AppState>) => {
+    if (updates.rideMode !== undefined) setRideMode(updates.rideMode);
     setStateRaw(prev => {
       const next = { ...prev, ...updates };
       saveState(next);
       return next;
     });
-  }, []);
+  }, [setRideMode]);
 
   const addMessage = useCallback((msg: Message) => {
     setStateRaw(prev => {

@@ -55,10 +55,15 @@ export function TelemetryScreen() {
 
   const handleShareLog = useCallback(async () => {
     try {
+      const exists = await RNFS.exists(BLE_LOG_FILE);
+      if (!exists) {
+        Alert.alert('No log yet', 'No diagnostic log found. Start a ride session to generate one.');
+        return;
+      }
       const content = await RNFS.readFile(BLE_LOG_FILE, 'utf8');
       await Share.share({ title: 'BLE Diagnostic Log', message: content });
     } catch (err: any) {
-      Alert.alert('Log unavailable', 'Connect to the bike first to generate a log.\n\n' + err.message);
+      Alert.alert('Share failed', err.message);
     }
   }, []);
 
@@ -97,31 +102,88 @@ export function TelemetryScreen() {
 
         {telemetry && (
           <View style={s.section}>
-            <Text style={s.sectionTitle}>Decoded values</Text>
-            {[
-              { label: 'Speed',        value: telemetry.speed_mph,    unit: ' mph' },
-              { label: 'Speed (kph)',  value: telemetry.speed_kph,    unit: ' km/h' },
-              { label: 'Voltage',      value: telemetry.battery_v,    unit: ' V' },
-              { label: 'Battery',      value: telemetry.battery_pct,  unit: '%' },
-              { label: 'Assist',       value: telemetry.assist_level, unit: '' },
-              { label: 'Odometer',     value: telemetry.odometer_raw, unit: '' },
-              { label: 'Load (TBD)',   value: telemetry.load_raw,     unit: '' },
-              { label: 'Word2 (TBD)', value: telemetry.word2_raw,    unit: '' },
-              { label: 'Motor',        value: telemetry.motor_w,      unit: ' W' },
-              { label: 'Cadence',      value: telemetry.cadence_rpm,  unit: ' rpm' },
-            ].map(({ label, value, unit }) => (
-              <View key={label} style={s.metricRow}>
-                <Text style={s.metricLabel}>{label}</Text>
-                <Text style={[s.metricValue, value == null && { color: C.muted }]}>
-                  {value != null ? `${value}${unit}` : '—'}
-                </Text>
-              </View>
-            ))}
+            <Text style={s.sectionTitle}>Live telemetry</Text>
+
+            {/* Speed — not in packet yet */}
+            <View style={s.metricRow}>
+              <Text style={s.metricLabel}>Speed</Text>
+              <Text style={[s.metricValue, { color: C.muted }]}>—</Text>
+            </View>
+
+            {/* Battery voltage + percentage */}
+            <View style={s.metricRow}>
+              <Text style={s.metricLabel}>Battery</Text>
+              <Text style={[s.metricValue, telemetry.battery_v == null && { color: C.muted }]}>
+                {telemetry.battery_v != null
+                  ? `${telemetry.battery_v} V  (${telemetry.battery_pct ?? '—'}%)`
+                  : '—'}
+              </Text>
+            </View>
+
+            {/* PAS / assist level */}
+            <View style={s.metricRow}>
+              <Text style={s.metricLabel}>Assist (PAS)</Text>
+              <Text style={[s.metricValue, telemetry.assist_level == null && { color: C.muted }]}>
+                {telemetry.assist_level != null ? `PAS ${telemetry.assist_level}` : '—'}
+              </Text>
+            </View>
+
+            {/* Motor power */}
+            <View style={s.metricRow}>
+              <Text style={s.metricLabel}>Motor power</Text>
+              <Text style={[s.metricValue, telemetry.motor_w == null && { color: C.muted }]}>
+                {telemetry.motor_w != null ? `${telemetry.motor_w} W` : '—'}
+              </Text>
+            </View>
+
+            {/* Trip distance */}
+            {(() => {
+              const km  = telemetry.trip_raw != null ? +(telemetry.trip_raw * 0.1).toFixed(1) : null;
+              const mi  = km != null ? +(km * 0.621371).toFixed(2) : null;
+              return (
+                <View style={s.metricRow}>
+                  <Text style={s.metricLabel}>Trip distance</Text>
+                  <Text style={[s.metricValue, km == null && { color: C.muted }]}>
+                    {km != null ? `${km} km  (${mi} mi)` : '—'}
+                  </Text>
+                </View>
+              );
+            })()}
+
+            {/* Odometer */}
+            {(() => {
+              const km  = telemetry.odometer_raw != null ? +(telemetry.odometer_raw * 0.1).toFixed(1) : null;
+              const mi  = km != null ? +(km * 0.621371).toFixed(1) : null;
+              return (
+                <View style={s.metricRow}>
+                  <Text style={s.metricLabel}>Odometer</Text>
+                  <Text style={[s.metricValue, km == null && { color: C.muted }]}>
+                    {km != null ? `${km} km  (${mi} mi)` : '—'}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
         )}
 
         {telemetry?.raw_notify_2 && (
-          <ByteGrid hex={telemetry.raw_notify_2} label="Notify 2 (12FF69A4)" />
+          <View>
+            <View style={s.byteGridHeader}>
+              <Text style={[s.sectionTitle, { marginBottom: 0 }]}>Notify 2 (12FF69A4)</Text>
+              {telemetry.checksum_ok != null && (
+                <View style={s.checksumRow}>
+                  <View style={[
+                    s.checksumDot,
+                    { backgroundColor: telemetry.checksum_ok ? C.sage : C.danger },
+                  ]} />
+                  <Text style={s.checksumLabel}>
+                    {telemetry.checksum_ok ? 'XOR OK' : 'XOR FAIL'}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <ByteGrid hex={telemetry.raw_notify_2} label="" />
+          </View>
         )}
 
         {log.length > 0 && (
@@ -162,6 +224,11 @@ const s = StyleSheet.create({
     paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: C.border },
   metricLabel: { fontSize: 14, color: C.muted },
   metricValue: { fontSize: 14, fontWeight: '500', color: C.text },
+  byteGridHeader: { flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 2 },
+  checksumRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  checksumDot: { width: 7, height: 7, borderRadius: 3.5 },
+  checksumLabel: { fontSize: 10, color: C.muted },
   byteCard: { backgroundColor: C.surface, borderRadius: 10,
     borderWidth: 0.5, borderColor: C.border, padding: 14 },
   byteLabel: { fontSize: 11, color: C.muted, letterSpacing: 0.6,

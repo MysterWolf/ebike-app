@@ -144,3 +144,13 @@ SELECT DATE(logged_at) AS ride_date, ROUND(AVG(draw_rate),2) AS avg_draw_rate,
     ROUND(AVG(distance_mi),1) AS avg_distance, COUNT(*) AS ride_count
 FROM ride_log WHERE logged_at IS NOT NULL GROUP BY ride_date ORDER BY ride_date DESC;
 `;
+
+export const RIDE_LOG_AUTO_MIGRATION = `
+ALTER TABLE ride_log ADD COLUMN start_time TEXT;
+ALTER TABLE ride_log ADD COLUMN end_time TEXT;
+ALTER TABLE ride_log ADD COLUMN duration_minutes REAL;
+ALTER TABLE ride_log ADD COLUMN start_battery_v REAL;
+ALTER TABLE ride_log ADD COLUMN end_battery_v REAL;
+ALTER TABLE ride_log ADD COLUMN distance_km REAL;
+ALTER TABLE ride_log ADD COLUMN auto_logged INTEGER DEFAULT 0
+`;

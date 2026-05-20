@@ -12,8 +12,9 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
 import DocumentPicker from 'react-native-document-picker';
-import { exportData, importData } from '../../utils/dataExport';
+import { exportData, exportRidesCsv, importRidesCsv, importData } from '../../utils/dataExport';
 import { CollapsibleSection } from '../CollapsibleSection';
 import { C, MONO } from '../../theme/colors';
 import {
@@ -100,7 +101,7 @@ function OpsButton({ icon, label, onPress }: { icon: string; label: string; onPr
 }
 
 export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile }: Props) {
-  const [dataLoading, setDataLoading] = useState<'export' | 'import' | null>(null);
+  const [dataLoading, setDataLoading] = useState<'export' | 'csv' | 'importCsv' | 'import' | null>(null);
   const [frontPsiInput, setFrontPsiInput] = useState('');
   const [rearPsiInput, setRearPsiInput] = useState('');
   const [psiError, setPsiError] = useState(false);
@@ -276,6 +277,33 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
       await exportData(state);
     } catch (err: any) {
       Alert.alert('Export Failed', err?.message || 'Could not export data.');
+    } finally {
+      setDataLoading(null);
+    }
+  }
+
+  async function handleExportCsv() {
+    setDataLoading('csv');
+    try {
+      await exportRidesCsv(state);
+    } catch (err: any) {
+      Alert.alert('CSV Export Failed', err?.message || 'Could not export ride data.');
+    } finally {
+      setDataLoading(null);
+    }
+  }
+
+  async function handleImportCsv() {
+    setDataLoading('importCsv');
+    try {
+      const incoming = await importRidesCsv();
+      const merged = [...state.rideLog, ...incoming];
+      update({ rideLog: merged });
+      Alert.alert('CSV Imported', `${incoming.length} ride${incoming.length !== 1 ? 's' : ''} added.`);
+    } catch (err: any) {
+      if (!DocumentPicker.isCancel(err)) {
+        Alert.alert('CSV Import Failed', err?.message || 'Could not read CSV.');
+      }
     } finally {
       setDataLoading(null);
     }
@@ -699,6 +727,42 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
 
         <TouchableOpacity
           style={styles.dataBtn}
+          onPress={handleExportCsv}
+          disabled={dataLoading !== null}
+          activeOpacity={0.7}
+        >
+          {dataLoading === 'csv' ? (
+            <ActivityIndicator size="small" color={C.accent} />
+          ) : (
+            <Text style={styles.dataBtnIcon}>↑</Text>
+          )}
+          <View style={styles.dataBtnContent}>
+            <Text style={styles.dataBtnLabel}>EXPORT RIDE CSV</Text>
+            <Text style={styles.dataBtnSub}>Share ride log as CSV spreadsheet</Text>
+          </View>
+          <Text style={styles.dataBtnArrow}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.dataBtn}
+          onPress={handleImportCsv}
+          disabled={dataLoading !== null}
+          activeOpacity={0.7}
+        >
+          {dataLoading === 'importCsv' ? (
+            <ActivityIndicator size="small" color={C.accent} />
+          ) : (
+            <Text style={styles.dataBtnIcon}>↓</Text>
+          )}
+          <View style={styles.dataBtnContent}>
+            <Text style={styles.dataBtnLabel}>IMPORT RIDE CSV</Text>
+            <Text style={styles.dataBtnSub}>Add rides from a CSV export file</Text>
+          </View>
+          <Text style={styles.dataBtnArrow}>›</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.dataBtn}
           onPress={handleImport}
           disabled={dataLoading !== null}
           activeOpacity={0.7}
@@ -730,6 +794,10 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
         </TouchableOpacity>
 
         </CollapsibleSection>
+
+        <Text style={styles.versionLabel}>
+          {`eBike Mission Control v${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`}
+        </Text>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -1135,6 +1203,7 @@ const styles = StyleSheet.create({
   dataBtnLabelDestructive: { color: C.red },
   dataBtnSub: { fontFamily: MONO, fontSize: 9, color: C.textSec, marginTop: 2 },
   dataBtnArrow: { fontSize: 18, color: C.textTer },
+  versionLabel: { fontSize: 11, color: C.textTer, textAlign: 'center', marginTop: 28, marginBottom: 4 },
 
   // Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },

@@ -168,7 +168,13 @@ async function loadRideLog(db: SQLiteDatabase): Promise<RideLogEntry[]> {
     const arr: RideLogEntry[] = [];
     for (let i = 0; i < res.rows.length; i++) {
       const r = res.rows.item(i);
-      arr.push({ distance: r.distance_mi, batteryUsed: r.battery_used_pct, drawRate: r.draw_rate, date: r.date_str ?? r.logged_at });
+      arr.push({
+        distance: r.distance_mi,
+        batteryUsed: r.battery_used_pct,
+        drawRate: r.draw_rate,
+        date: r.date_str ?? r.logged_at,
+        rideMode: r.ride_mode ?? undefined,
+      });
     }
     return arr;
   } catch { return []; }
@@ -294,9 +300,9 @@ async function saveRideLog(db: SQLiteDatabase, rides: RideLogEntry[]): Promise<v
         })();
         tx.executeSql(
           `INSERT OR IGNORE INTO ride_log
-            (id, distance_mi, battery_used_pct, draw_rate, date_str, logged_at, created_at)
-           VALUES (?,?,?,?,?,?,?)`,
-          [uuid(), r.distance, r.batteryUsed, r.drawRate, r.date, loggedAt, now()]
+            (id, distance_mi, battery_used_pct, draw_rate, ride_mode, date_str, logged_at, created_at)
+           VALUES (?,?,?,?,?,?,?,?)`,
+          [uuid(), r.distance, r.batteryUsed, r.drawRate, r.rideMode ?? null, r.date, loggedAt, now()]
         );
       }
     }, reject, () => resolve());

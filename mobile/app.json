@@ -1,6 +1,6 @@
 {
   "name": "EBikeApp",
-  "displayName": "E-Bike Companion",
+  "displayName": "Mission Control",
   "expo": {
     "icon": "./assets/ebike-icon.png",
     "android": {

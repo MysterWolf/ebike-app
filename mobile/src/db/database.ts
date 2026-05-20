@@ -1,5 +1,5 @@
 import SQLite, { SQLiteDatabase, Transaction } from 'react-native-sqlite-storage';
-import { EBIKE_SCHEMA } from './schema';
+import { EBIKE_SCHEMA, RIDE_LOG_AUTO_MIGRATION } from './schema';
 
 SQLite.enablePromise(true);
 SQLite.DEBUG(false);
@@ -44,6 +44,11 @@ async function applySchema(db: SQLiteDatabase): Promise<void> {
       description: 'Add model and nickname to bike_state',
       sql: `ALTER TABLE bike_state ADD COLUMN model TEXT;
             ALTER TABLE bike_state ADD COLUMN nickname TEXT NOT NULL DEFAULT ''`,
+    },
+    {
+      version: 3,
+      description: 'Add auto-ride columns to ride_log',
+      sql: RIDE_LOG_AUTO_MIGRATION,
     },
   ];
   const [res] = await db.executeSql('SELECT MAX(version) AS v FROM _schema_version');

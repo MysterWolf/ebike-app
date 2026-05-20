@@ -14,6 +14,7 @@ import { BleManager, Device, Characteristic, BleError } from 'react-native-ble-p
 import { Platform, PermissionsAndroid, NativeModules } from 'react-native';
 import { Buffer } from 'buffer';
 import RNFS from 'react-native-fs';
+import { BleAuth } from './BleAuth';
 
 // ---- File-based diagnostic logger ----
 export const BLE_LOG_FILE = RNFS.ExternalDirectoryPath + '/ble-diagnostic.txt';
@@ -28,6 +29,7 @@ function fileLog(msg: string): void {
 
 async function initLogFile(): Promise<void> {
   try {
+    await RNFS.mkdir(RNFS.ExternalDirectoryPath);
     await RNFS.writeFile(BLE_LOG_FILE, `[${fts()}] LOG STARTED\n`, 'utf8');
   } catch {}
 }
@@ -40,7 +42,6 @@ const V70_SERVICE      = '12FF69A0-73AE-11EE-B962-0002A5D5C51B';
 const V70_WRITE_1      = '12FF69A1-73AE-11EE-B962-0002A5D5C51B';
 const V70_WRITE_2      = '12FF69A2-73AE-11EE-B962-0002A5D5C51B';
 const V70_NOTIFY_2     = '12FF69A4-73AE-11EE-B962-0002A5D5C51B';
-const V70_READ         = '12FF69A5-73AE-11EE-B962-0002A5D5C51B';
 const V70_DEVICE_NAME  = 'V70';
 
 // ============================================================
@@ -48,18 +49,20 @@ const V70_DEVICE_NAME  = 'V70';
 // ============================================================
 
 export interface V70Telemetry {
-  // Confirmed fields (decoded from V70wNotify.csv GATT capture)
-  speed_kph?:      number | null;   // word[6] / 10  (0–37.3 km/h observed)
-  speed_mph?:      number | null;   // speed_kph × 0.6214
-  battery_v?:      number | null;   // word[1] / 100 (volts; 10S pack: 31.27–31.64V observed)
-  battery_pct?:    number | null;   // reserved — needs cell-count config before computing
+  // Confirmed fields (byte map proven by V70wNotify.csv, 3595 binary packets)
+  speed_kph?:      number | null;   // not present in packet — null until derived from trip_raw deltas
+  speed_mph?:      number | null;   // not present in packet — null until derived from trip_raw deltas
+  battery_v?:      number | null;   // buf[5] / 3 (52V 14S pack: ~42–58.8V range)
+  battery_pct?:    number | null;   // derived: (battery_v − 42) / 16.8 × 100, clamped 0–100
   assist_level?:   number | null;   // from +MODE=N ASCII packet on A4 (1 | 2 | 3)
-  odometer_raw?:   number | null;   // word[5] raw counter — use delta for trip distance
-  load_raw?:       number | null;   // word[3] — 0 at rest, rises while riding (current or temp, TBD)
-  word2_raw?:      number | null;   // word[2] — decreases over session, meaning unknown
-  checksum_ok?:    boolean;         // XOR of bytes 0–14 === byte 15 (verified 3595/3595 in capture)
-  // Pending — byte map not yet identified in capture
-  motor_w?:        number | null;
+  trip_raw?:       number | null;   // buf[7]: trip distance counter, ~100 m/unit (0 at session start)
+  odometer_raw?:   number | null;   // buf[10–11] uint16 BE: lifetime odometer, ~100 m/unit
+  motor_w?:        number | null;   // buf[12–13] uint16 BE: motor power in watts (0 at idle)
+  checksum_ok?:    boolean;         // XOR of bytes 0–14 === byte 15 (verified 0 errors / 3595 packets)
+  // UI compat aliases (kept to avoid breaking existing consumers)
+  load_raw?:       number | null;   // alias for trip_raw
+  word2_raw?:      number | null;   // buf[5] fine voltage raw byte
+  // Not yet identified in capture
   cadence_rpm?:    number | null;
   // Raw payload for debugging
   raw_notify_2?:   string;
@@ -83,28 +86,32 @@ export type StatusCallback    = (status: BleStatus, message?: string) => void;
 // enabled in the capture but never fired — kept for future use.
 //
 // A4 packet types:
-//   16-byte telemetry  — header 0x3AA0, 8 × BE uint16
-//   7-byte mode change — ASCII "+MODE=N" (N = 1|2|3)
+//   16-byte binary telemetry — starts with 0x3A 0xA0
+//   variable ASCII mode-change — "+MODE=N" (starts with 0x2B = '+')
 //
-// 16-byte telemetry layout (big-endian uint16):
-//   word[0]  bytes 0-1   0x3AA0      header / magic
-//   word[1]  bytes 2-3   voltage     ÷ 100 = volts
-//   word[2]  bytes 4-5   unknown     decreases over session (TBD)
-//   word[3]  bytes 6-7   load        0 at rest, rises while riding (current or temp, TBD)
-//   word[4]  bytes 8-9   0x0000      reserved
-//   word[5]  bytes 10-11 odometer    raw counter; use delta for trip distance
-//   word[6]  bytes 12-13 speed       ÷ 10 = km/h  (verified: 0 when stopped)
-//   word[7]  bytes 14-15 checksum    low byte = XOR of bytes 0–14; high byte = 0x00
+// 16-byte binary layout (proven by V70wNotify.csv, 3595 packets):
+//   [0]     0x3A              frame magic (constant)
+//   [1]     0xA0              frame magic (constant)
+//   [2]     0x0C              constant — NOT part of voltage
+//   [3]     batt_v_coarse     battery voltage indicator, range 55–92 raw
+//   [4]     0x02              constant
+//   [5]     batt_v_fine       battery voltage, range 112–176 raw
+//                             formula: V = buf[5] / 3  (52V 14S pack: ~37–58.8V)
+//   [6]     0x00              constant
+//   [7]     trip_raw          trip distance counter, ~100 m/unit (0 at session start)
+//   [8–9]   0x00 0x00         constant
+//   [10–11] odometer_raw      uint16 BE, lifetime odometer, ~100 m/unit
+//   [12–13] motor_w           uint16 BE, motor power in watts (0 at idle, 150–375W riding)
+//                             NOT speed — speed is not present in this packet
+//   [14]    0x00              constant
+//   [15]    XOR checksum      XOR of bytes 0–14 (verified 0 errors / 3595 packets)
 // ============================================================
-
-const TELEMETRY_HEADER = 0x3AA0;
-const KPH_TO_MPH       = 0.621371;
 
 function decodeNotify2(base64: string): Partial<V70Telemetry> {
   try {
     const buf = Buffer.from(base64, 'base64');
 
-    // --- Mode-change packet: ASCII "+MODE=N" (7 bytes, starts with '+' = 0x2B) ---
+    // --- Mode-change packet: ASCII "+MODE=N" (starts with '+' = 0x2B) ---
     if (buf[0] === 0x2B) {
       const ascii = buf.toString('ascii').trim();
       if (ascii.startsWith('+MODE=')) {
@@ -118,17 +125,17 @@ function decodeNotify2(base64: string): Partial<V70Telemetry> {
       return { raw_notify_2: buf.toString('hex') };
     }
 
-    // --- 16-byte telemetry packet (header 0x3AA0, confirmed by GATT capture 3595/3595) ---
-    if (buf.length !== 16 || buf.readUInt16BE(0) !== TELEMETRY_HEADER) {
+    // --- 16-byte binary telemetry packet ---
+    if (buf.length !== 16 || buf[0] !== 0x3A || buf[1] !== 0xA0) {
       const reason = buf.length !== 16
         ? `wrong length: got ${buf.length} expected 16`
-        : `wrong header: got 0x${buf.readUInt16BE(0).toString(16).toUpperCase()} expected 0x3AA0`;
+        : `wrong header: 0x${buf[0].toString(16).padStart(2, '0')}${buf[1].toString(16).padStart(2, '0')} expected 0x3aa0`;
       console.warn('[BLE] DECODE REJECTED:', reason, 'hex:', buf.toString('hex'));
       fileLog(`DECODE REJECTED: ${reason} raw:${buf.toString('hex')}`);
       return { raw_notify_2: buf.toString('hex') };
     }
 
-    // XOR checksum: bytes 0–14 XORed must equal byte 15
+    // XOR checksum: XOR of bytes 0–14 must equal byte 15
     let xor = 0;
     for (let i = 0; i < 15; i++) xor ^= buf[i];
     const checksum_ok = xor === buf[15];
@@ -137,24 +144,27 @@ function decodeNotify2(base64: string): Partial<V70Telemetry> {
       fileLog(`DECODE REJECTED: XOR check failed raw:${buf.toString('hex')}`);
     }
 
-    const voltageRaw      = buf.readUInt16BE(2);   // word[1]: voltage raw
-    const word2_raw       = buf.readUInt16BE(4);   // word[2]: unknown; oscillates ±1, net decrease over session (possible SoC×10)
-    const sessionCounter  = buf.readUInt16BE(6);   // word[3]: monotonically increasing; ~1 per 18s while assist active
-    // word[4] at offset 8 is always 0x0000 — confirmed GATT capture 3595/3595
-    const odomRaw         = buf.readUInt16BE(10);  // word[5]: lifetime odometer raw
-    const speedRaw        = buf.readUInt16BE(12);  // word[6]: speed raw
-    // byte[14] always 0x00; byte[15] is checksum — already consumed above
+    // buf[5] * 0.413 = volts. Ground truth: buf[5]=127 → 52.4V at 62% on 52V (14S) pack.
+    const battery_v   = parseFloat((buf[5] * 0.413).toFixed(1));
+    const battery_pct = Math.max(0, Math.min(100,
+      Math.round((battery_v - 42) / 16.8 * 100)
+    ));
 
-    const speed_kph = speedRaw / 10;
+    const trip_raw     = buf[7];                 // ~100 m/unit, 0 at session start
+    const odometer_raw = buf.readUInt16BE(10);   // ~100 m/unit, lifetime counter
+    const motor_w      = buf.readUInt16BE(12);   // watts; 0 at idle
 
     return {
-      speed_kph,
-      speed_mph:    parseFloat((speed_kph * KPH_TO_MPH).toFixed(2)),
-      battery_v:    parseFloat((voltageRaw / 100).toFixed(2)),
-      odometer_raw: odomRaw,
-      load_raw:     sessionCounter,   // load_raw kept for UI compat; actual meaning: session activation counter
-      word2_raw,
+      speed_kph:    null,       // not encoded in packet
+      speed_mph:    null,
+      battery_v,
+      battery_pct,
+      odometer_raw,
+      trip_raw,
+      motor_w,
       checksum_ok,
+      load_raw:     trip_raw,   // UI compat alias
+      word2_raw:    buf[5],     // fine voltage raw byte
       raw_notify_2: buf.toString('hex'),
     };
   } catch (err) {
@@ -174,6 +184,7 @@ class V70BleService {
   private onTelemetry:       TelemetryCallback | null = null;
   private onStatusChange:    StatusCallback | null = null;
   private latestTelemetry:   V70Telemetry = { timestamp: Date.now() };
+  private bleAuth:           BleAuth = new BleAuth();
 
   constructor() {
     this.manager = new BleManager();
@@ -251,7 +262,10 @@ class V70BleService {
             this.setStatus('connected');
             BleFS?.start();
             this.setupNotifications();
-            this.readStaticInfo();
+            // Give GATT stack 500ms to settle, then kick off mutual auth
+            await new Promise(r => setTimeout(r, 500));
+            this.bleAuth.reset();
+            this.bleAuth.start(this.writeToA1.bind(this), fileLog);
             resolve(true);
           } catch (err: any) {
             console.error('[BLE] Connect error:', err);
@@ -286,6 +300,19 @@ class V70BleService {
 
   // ---- Private ----
 
+  private async writeToA1(data: string): Promise<void> {
+    if (!this.device) {
+      fileLog(`AUTH WRITE SKIP: no device, data=${data}`);
+      return;
+    }
+    const b64 = Buffer.from(data, 'ascii').toString('base64');
+    fileLog(`AUTH WRITE A1: ${data}`);
+    // writeWithoutResponse — companion app never uses ACK on A1
+    await this.device.writeCharacteristicWithoutResponseForService(
+      V70_SERVICE, V70_WRITE_1, b64
+    );
+  }
+
   private setStatus(status: BleStatus, message?: string) {
     this.status = status;
     console.log('[BLE] Status:', status, message ?? '');
@@ -301,11 +328,12 @@ class V70BleService {
 
     fileLog('SETUP NOTIFICATIONS CALLED');
 
-    // Subscribe to notify characteristic 2 (sole telemetry source)
+    // A4 (V70_NOTIFY_2) — sole telemetry source
     fileLog('MONITOR REGISTERED FOR A4');
     this.device.monitorCharacteristicForService(
       V70_SERVICE, V70_NOTIFY_2,
       (error: BleError | null, char: Characteristic | null) => {
+        fileLog(`RAW BASE64: ${char?.value}`);
         const rawB64 = char?.value ?? null;
         const byteLen = rawB64 ? Buffer.from(rawB64, 'base64').length : 0;
         console.log('[BLE] RAW A4 PACKET:', rawB64, 'timestamp:', Date.now());
@@ -316,38 +344,29 @@ class V70BleService {
           return;
         }
         if (rawB64) {
+          // ALWAYS decode and merge — auth is purely additive, never blocks this path
           const decoded = decodeNotify2(rawB64);
           fileLog(`DECODED: ${JSON.stringify(decoded)}`);
           this.mergeTelemetry(decoded);
+          // Route auth/control packets to state machine.
+          // '+' prefix = auth protocol; buf.length < 16 = short control (CODE_OK etc).
+          // 16-byte binary telemetry (0x3A 0xA0 header) matches neither — unaffected.
+          const buf = Buffer.from(rawB64, 'base64');
+          if (buf[0] === 0x2B || buf.length < 16) {
+            this.bleAuth.handlePacket(buf.toString('ascii').trim(), this.writeToA1.bind(this), fileLog);
+          }
         }
       }
     );
 
     // Watch for disconnection
-    this.device.onDisconnected((error, device) => {
-      const reason = error?.message ?? 'clean disconnect';
-      console.log('[BLE] Disconnected:', reason);
-      fileLog(`DISCONNECTED: ${reason}`);
+    this.device.onDisconnected((error, _device) => {
+      console.log('[BLE] DISCONNECT REASON:', JSON.stringify(error));
+      fileLog(`DISCONNECT: androidErrorCode:${error?.androidErrorCode} errorCode:${error?.errorCode} message:${error?.message} reason:${error?.reason}`);
       this.device = null;
       BleFS?.stop();
       this.setStatus('disconnected');
     });
-  }
-
-  private async readStaticInfo() {
-    if (!this.device) return;
-    try {
-      const char = await this.device.readCharacteristicForService(
-        V70_SERVICE, V70_READ
-      );
-      if (char.value) {
-        const buf = Buffer.from(char.value, 'base64');
-        console.log('[BLE] Static info hex:', buf.toString('hex'));
-        console.log('[BLE] Static info utf8:', buf.toString('utf8'));
-      }
-    } catch (err) {
-      console.log('[BLE] Static info read failed (may require auth):', err);
-    }
   }
 
   private mergeTelemetry(partial: Partial<V70Telemetry>) {
