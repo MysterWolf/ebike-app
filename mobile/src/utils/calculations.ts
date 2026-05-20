@@ -2,13 +2,18 @@ import { AppState } from '../state/types';
 
 export function modeBaseline(rideMode: string): number {
   if (rideMode === 'MAX_RANGE') return 1.2;
-  if (rideMode === 'HARD') return 4.7;
-  return 1.75; // CRUISER
+  if (rideMode === 'SPORT' || rideMode === 'HARD') return 4.7;
+  return 1.75; // CRUISER / CUSTOM
 }
 
 export function lastRideDraw(state: AppState): number | null {
   if (!state.rideLog || state.rideLog.length === 0) return null;
-  return state.rideLog[state.rideLog.length - 1].drawRate;
+  const lastRide = [...state.rideLog].sort((a, b) => {
+    const ta = a.logged_at ?? a.date;
+    const tb = b.logged_at ?? b.date;
+    return tb > ta ? 1 : -1;
+  })[0];
+  return lastRide.drawRate;
 }
 
 const BASELINE_WEIGHT = 20; // virtual miles anchoring the mode baseline into the blend

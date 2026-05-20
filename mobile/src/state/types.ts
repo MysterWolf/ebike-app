@@ -8,6 +8,9 @@ export interface RideLogEntry {
   batteryUsed: number;
   drawRate: number;
   date: string;
+  logged_at?: string;
+  rideMode?: string;
+  notes?: string;
 }
 
 export type ModCategory =
@@ -51,7 +54,7 @@ export type GearCategory = 'footwear' | 'helmet' | 'gloves' | 'jacket' | 'cargo'
 export interface AppState {
   odometer: number;
   battery: number;
-  rideMode: 'MAX_RANGE' | 'CRUISER' | 'HARD';
+  rideMode: 'MAX_RANGE' | 'CRUISER' | 'SPORT' | 'CUSTOM';
   rideLog: RideLogEntry[];
   chargerAmps: number;
   chargeTarget: number;

@@ -9,6 +9,7 @@ import {
   estRange,
   chargeTime,
 } from '../utils/calculations';
+import { useBleContext } from '../context/BleContext';
 
 interface Props {
   state: AppState;
@@ -43,14 +44,19 @@ export function MetricsRows({ state }: Props) {
   const baseline = modeBaseline(state.rideMode);
   const ct = chargeTime(state);
 
-  const batColor = bat < 20 ? C.red : bat < 35 ? C.amber : C.accent;
+  const { status, telemetry } = useBleContext();
+  const liveBat = status === 'connected' && telemetry?.battery_pct != null
+    ? telemetry.battery_pct
+    : bat;
+
+  const batColor = liveBat < 20 ? C.red : liveBat < 35 ? C.amber : C.accent;
   const rangeColor = range < 8 ? C.red : range < 15 ? C.amber : C.accent;
 
   return (
     <>
       <View style={styles.row}>
         <Tile label="TOTAL MILES" value={odo.toFixed(1)} unit="mi" color={C.textSec} />
-        <Tile label="BATTERY" value={bat.toFixed(0)} unit="%" color={batColor} />
+        <Tile label="BATTERY" value={liveBat.toFixed(0)} unit="%" color={batColor} />
         <Tile label="EST. RANGE" value={range.toFixed(1)} unit="mi" color={rangeColor} />
       </View>
       <View style={[styles.row, styles.row2]}>

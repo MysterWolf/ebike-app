@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   Alert,
+  Modal,
   View,
   Text,
   TextInput,
@@ -12,6 +13,7 @@ import { CollapsibleSection } from '../CollapsibleSection';
 import { C, MONO } from '../../theme/colors';
 import { AppState, ChargeLogEntry, RideLogEntry } from '../../state/types';
 import { nowTime } from '../../utils/ai';
+import { useBleContext } from '../../context/BleContext';
 
 interface Props {
   state: AppState;
@@ -54,7 +56,21 @@ export function RideTab({ state, update, onSysMsg }: Props) {
   const [rideBatInput, setRideBatInput] = useState('');
   const [rideLogError, setRideLogError] = useState<'dist' | 'bat' | null>(null);
 
-  const batColor = state.battery < 20 ? C.red : state.battery < 35 ? C.amber : C.accent;
+  // Edit modal state (Bug 1)
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editRideDate, setEditRideDate] = useState('');
+  const [editDist, setEditDist] = useState('');
+  const [editBat, setEditBat] = useState('');
+  const [editMode, setEditMode] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
+  // Live battery from BLE when connected (Bug 3)
+  const { status, telemetry } = useBleContext();
+  const liveBat = status === 'connected' && telemetry?.battery_pct != null
+    ? telemetry.battery_pct
+    : state.battery;
+
+  const batColor = liveBat < 20 ? C.red : liveBat < 35 ? C.amber : C.accent;
 
   function logCharge() {
     const pct = parseFloat(chargedToInput);
@@ -98,7 +114,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
       ', ' +
       now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    const entry: RideLogEntry = { distance: dist, batteryUsed: bat, drawRate, date };
+    const entry: RideLogEntry = { distance: dist, batteryUsed: bat, drawRate, date, logged_at: now.toISOString(), rideMode: state.rideMode };
     update({
       rideLog: [...state.rideLog, entry],
       odometer: Math.round((state.odometer + dist) * 10) / 10,
@@ -110,21 +126,56 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
   }
 
-  function deleteRide(origIdx: number) {
-    const removed = state.rideLog[origIdx];
+  // Bug 1 — proper edit modal
+  function openEditModal(origIdx: number) {
+    const ride = state.rideLog[origIdx];
+    if (!ride) return;
+    setEditRideDate(ride.date);
+    setEditDist(String(ride.distance));
+    setEditBat(String(ride.batteryUsed));
+    setEditMode(ride.rideMode ?? 'CRUISER');
+    setEditNotes(ride.notes ?? '');
+    setEditModalVisible(true);
+  }
+
+  function saveEdit() {
+    const dist = parseFloat(editDist);
+    const bat = parseFloat(editBat);
+    if (isNaN(dist) || dist <= 0 || isNaN(bat) || bat < 0 || bat > 100) return;
+    const drawRate = dist > 0 ? bat / dist : 0;
+    const newLog = state.rideLog.map(r =>
+      r.date === editRideDate
+        ? { ...r, distance: Math.round(dist * 10) / 10, batteryUsed: Math.round(bat * 10) / 10, drawRate: Math.round(drawRate * 100) / 100, rideMode: editMode, notes: editNotes.trim() || undefined }
+        : r
+    );
+    update({ rideLog: newLog });
+    setEditModalVisible(false);
+  }
+
+  function closeEdit() {
+    setEditModalVisible(false);
+  }
+
+  function deleteFromModal() {
     Alert.alert(
-      'Remove Entry',
-      'Delete this mission from the log?',
+      'Delete Ride',
+      'Delete this ride? This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            const newLog = state.rideLog.filter((_, i) => i !== origIdx);
-            const newOdometer = Math.max(0, Math.round((state.odometer - removed.distance) * 10) / 10);
-            const newBattery = Math.min(100, Math.round((state.battery + removed.batteryUsed) * 10) / 10);
+            const removed = state.rideLog.find(r => r.date === editRideDate);
+            const newLog = state.rideLog.filter(r => r.date !== editRideDate);
+            const newOdometer = removed
+              ? Math.max(0, Math.round((state.odometer - removed.distance) * 10) / 10)
+              : state.odometer;
+            const newBattery = removed
+              ? Math.min(100, Math.round((state.battery + removed.batteryUsed) * 10) / 10)
+              : state.battery;
             update({ rideLog: newLog, odometer: newOdometer, battery: newBattery });
+            setEditModalVisible(false);
           },
         },
       ],
@@ -133,7 +184,11 @@ export function RideTab({ state, update, onSysMsg }: Props) {
 
   const displayRides = (state.rideLog ?? [])
     .map((ride, origIdx) => ({ ride, origIdx }))
-    .reverse();
+    .sort((a, b) => {
+      const ta = a.ride.logged_at ?? a.ride.date;
+      const tb = b.ride.logged_at ?? b.ride.date;
+      return tb > ta ? 1 : -1;
+    });
 
   return (
     <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content}>
@@ -151,8 +206,8 @@ export function RideTab({ state, update, onSysMsg }: Props) {
 
       <View style={styles.group}>
         <View style={styles.row}>
-          <Label>BATTERY %</Label>
-          <Text style={[styles.batValue, { color: batColor }]}>{state.battery}%</Text>
+          <Label>BATTERY %{status === 'connected' ? '  ⚡ LIVE' : ''}</Label>
+          <Text style={[styles.batValue, { color: batColor }]}>{liveBat.toFixed(0)}%</Text>
         </View>
         <View style={styles.batControls}>
           <TouchableOpacity
@@ -177,7 +232,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
             <Text style={styles.stepperText}>+5</Text>
           </TouchableOpacity>
         </View>
-        <BatteryBar pct={state.battery} />
+        <BatteryBar pct={liveBat} />
       </View>
 
       <View style={styles.group}>
@@ -206,14 +261,25 @@ export function RideTab({ state, update, onSysMsg }: Props) {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.modeBtn, state.rideMode === 'HARD' && styles.modeBtnActive]}
-            onPress={() => update({ rideMode: 'HARD' })}
+            style={[styles.modeBtn, state.rideMode === 'SPORT' && styles.modeBtnActive]}
+            onPress={() => update({ rideMode: 'SPORT' })}
           >
-            <Text style={[styles.modeBtnLabel, state.rideMode === 'HARD' && styles.modeBtnLabelActive]}>
-              HARD
+            <Text style={[styles.modeBtnLabel, state.rideMode === 'SPORT' && styles.modeBtnLabelActive]}>
+              SPORT
             </Text>
-            <Text style={[styles.modeBtnSub, state.rideMode === 'HARD' && styles.modeBtnLabelActive]}>
+            <Text style={[styles.modeBtnSub, state.rideMode === 'SPORT' && styles.modeBtnLabelActive]}>
               aggressive · 4.7 %/mi
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeBtn, state.rideMode === 'CUSTOM' && styles.modeBtnActive]}
+            onPress={() => update({ rideMode: 'CUSTOM' })}
+          >
+            <Text style={[styles.modeBtnLabel, state.rideMode === 'CUSTOM' && styles.modeBtnLabelActive]}>
+              CUSTOM
+            </Text>
+            <Text style={[styles.modeBtnSub, state.rideMode === 'CUSTOM' && styles.modeBtnLabelActive]}>
+              user-defined
             </Text>
           </TouchableOpacity>
         </View>
@@ -265,38 +331,96 @@ export function RideTab({ state, update, onSysMsg }: Props) {
             />
           </View>
         </View>
+        <View style={styles.logModeRow}>
+          {(['MAX_RANGE', 'CRUISER', 'SPORT', 'CUSTOM'] as const).map(m => (
+            <TouchableOpacity
+              key={m}
+              style={[styles.logModePill, state.rideMode === m && styles.logModePillActive]}
+              onPress={() => update({ rideMode: m })}
+            >
+              <Text style={[styles.logModePillText, state.rideMode === m && styles.logModePillTextActive]}>
+                {m === 'MAX_RANGE' ? 'MAX RNG' : m}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <TouchableOpacity style={styles.logRideBtn} onPress={logRide}>
           <Text style={styles.logRideBtnText}>LOG MISSION</Text>
         </TouchableOpacity>
       </View>
 
-      {displayRides.length > 0 && (
-        <View style={styles.card}>
+      {displayRides.length > 0 && (() => {
+        const MODE_LABELS: Record<string, string> = {
+          MAX_RANGE: 'MAX RANGE',
+          CRUISER:   'CRUISER',
+          SPORT:     'SPORT',
+          HARD:      'SPORT',   // legacy entries
+          CUSTOM:    'CUSTOM',
+        };
+        const ORDER = ['MAX_RANGE', 'CRUISER', 'SPORT', 'HARD', 'CUSTOM'];
+        const buckets: Record<string, number[]> = {};
+        for (const { ride } of displayRides) {
+          const key = ride.rideMode ?? 'UNKNOWN';
+          if (!buckets[key]) buckets[key] = [];
+          buckets[key].push(ride.drawRate);
+        }
+        // Merge HARD into SPORT bucket for display
+        if (buckets['HARD']) {
+          buckets['SPORT'] = [...(buckets['SPORT'] ?? []), ...buckets['HARD']];
+          delete buckets['HARD'];
+        }
+        const displayModes = [...ORDER.filter(m => m !== 'HARD' && buckets[m]), ...Object.keys(buckets).filter(k => !ORDER.includes(k))];
+
+        return (
+          <>
+            {displayModes.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>DRAW RATE BY MODE</Text>
+                {displayModes.map(mode => {
+                  const rates = buckets[mode];
+                  const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
+                  const label = MODE_LABELS[mode] ?? mode;
+                  return (
+                    <View key={mode} style={styles.modeStatRow}>
+                      <Text style={styles.modeStatLabel}>{label}</Text>
+                      <Text style={styles.modeStatValue}>{avg.toFixed(2)}<Text style={styles.histUnit}> %/mi</Text></Text>
+                      <Text style={styles.modeStatCount}>({rates.length} ride{rates.length !== 1 ? 's' : ''})</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            <View style={styles.card}>
           <Text style={styles.cardTitle}>MISSION HISTORY ({state.rideLog.length} total)</Text>
           <View style={styles.histHeader}>
             <Text style={[styles.histCell, styles.histDate]}>DATE</Text>
             <Text style={[styles.histCell, styles.histNum]}>DIST</Text>
             <Text style={[styles.histCell, styles.histNum]}>BAT</Text>
             <Text style={[styles.histCell, styles.histDraw]}>DRAW</Text>
-            <View style={styles.histDelCol} />
           </View>
           {displayRides.map(({ ride, origIdx }, i) => (
-            <View key={origIdx} style={[styles.histRow, i < displayRides.length - 1 && styles.histRowBorder]}>
-              <Text style={[styles.histCell, styles.histDate, styles.histValue]}>{ride.date}</Text>
-              <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.distance.toFixed(1)}<Text style={styles.histUnit}> mi</Text></Text>
-              <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.batteryUsed}<Text style={styles.histUnit}>%</Text></Text>
-              <Text style={[styles.histCell, styles.histDraw, styles.histDrawValue]}>{ride.drawRate.toFixed(2)}<Text style={styles.histUnit}> %/mi</Text></Text>
+            <View key={origIdx} style={[styles.histEntry, i < displayRides.length - 1 && styles.histEntryBorder]}>
+              <View style={styles.histRow}>
+                <Text style={[styles.histCell, styles.histDate, styles.histValue]}>{ride.date}</Text>
+                <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.distance.toFixed(1)}<Text style={styles.histUnit}> mi</Text></Text>
+                <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.batteryUsed}<Text style={styles.histUnit}>%</Text></Text>
+                <Text style={[styles.histCell, styles.histDraw, styles.histDrawValue]}>{ride.drawRate.toFixed(2)}<Text style={styles.histUnit}> %/mi</Text></Text>
+              </View>
               <TouchableOpacity
-                style={styles.histDelCol}
-                onPress={() => deleteRide(origIdx)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => openEditModal(origIdx)}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
-                <Text style={styles.histDel}>✕</Text>
+                <Text style={styles.modeBadge}>
+                  {ride.rideMode ? ride.rideMode.replace('_', ' ') : '— mode'}{ride.notes ? '  · ' + ride.notes : ''} ›
+                </Text>
               </TouchableOpacity>
             </View>
           ))}
         </View>
-      )}
+          </>
+        );
+      })()}
 
       </CollapsibleSection>
 
@@ -344,6 +468,86 @@ export function RideTab({ state, update, onSysMsg }: Props) {
       </CollapsibleSection>
 
       <View style={{ height: 20 }} />
+
+      {/* Bug 1 — Edit Mission Modal */}
+      <Modal visible={editModalVisible} transparent animationType="fade" onRequestClose={closeEdit}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>EDIT MISSION</Text>
+            <Text style={styles.modalDate}>{editRideDate}</Text>
+
+            <Label>RIDE MODE</Label>
+            <View style={[styles.modeRow, { marginBottom: 10 }]}>
+              {(['MAX_RANGE', 'CRUISER', 'SPORT', 'CUSTOM'] as const).map(m => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.modeBtn, editMode === m && styles.modeBtnActive]}
+                  onPress={() => setEditMode(m)}
+                >
+                  <Text style={[styles.modeBtnLabel, editMode === m && styles.modeBtnLabelActive]}>
+                    {m === 'MAX_RANGE' ? 'MAX\nRNG' : m}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.inlineRow}>
+              <View style={styles.flex1}>
+                <Label>DISTANCE (mi)</Label>
+                <InputField
+                  keyboardType="decimal-pad"
+                  value={editDist}
+                  onChangeText={setEditDist}
+                  placeholder="0.0"
+                />
+              </View>
+              <View style={styles.flex1}>
+                <Label>BATTERY USED (%)</Label>
+                <InputField
+                  keyboardType="decimal-pad"
+                  value={editBat}
+                  onChangeText={setEditBat}
+                  placeholder="0.0"
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalDrawRow}>
+              <Text style={styles.label}>DRAW RATE</Text>
+              <Text style={styles.modalDrawVal}>
+                {(() => {
+                  const d = parseFloat(editDist);
+                  const b = parseFloat(editBat);
+                  return !isNaN(d) && d > 0 && !isNaN(b) ? (b / d).toFixed(2) + ' %/mi' : '—';
+                })()}
+              </Text>
+            </View>
+
+            <Label>NOTES</Label>
+            <InputField
+              value={editNotes}
+              onChangeText={setEditNotes}
+              placeholder="optional notes"
+              multiline
+              style={[styles.input, { minHeight: 50, textAlignVertical: 'top' }]}
+            />
+
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalCancel} onPress={closeEdit}>
+                <Text style={styles.modalCancelText}>CANCEL</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSave} onPress={saveEdit}>
+                <Text style={styles.modalSaveText}>SAVE</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalDeleteDivider} />
+            <TouchableOpacity style={styles.modalDelete} onPress={deleteFromModal}>
+              <Text style={styles.modalDeleteText}>DELETE RIDE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -448,6 +652,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   actionBtnText: { fontFamily: MONO, fontSize: 11, fontWeight: '700', color: C.white, letterSpacing: 1 },
+  logModeRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  logModePill: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 4,
+    paddingVertical: 6, alignItems: 'center', backgroundColor: C.bg },
+  logModePillActive: { backgroundColor: C.accent, borderColor: C.accent },
+  logModePillText: { fontFamily: MONO, fontSize: 9, fontWeight: '700',
+    color: C.textSec, letterSpacing: 0.5 },
+  logModePillTextActive: { color: C.white },
   logRideBtn: {
     backgroundColor: C.accent,
     borderRadius: 6,
@@ -463,8 +674,11 @@ const styles = StyleSheet.create({
     borderBottomColor: C.border,
     marginBottom: 4,
   },
-  histRow: { flexDirection: 'row', paddingVertical: 5 },
-  histRowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
+  histEntry: { paddingVertical: 5 },
+  histEntryBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
+  histRow: { flexDirection: 'row' },
+  modeBadge: { fontFamily: MONO, fontSize: 9, color: C.textTer, letterSpacing: 0.5,
+    marginTop: 3, marginBottom: 1 },
   histCell: { fontFamily: MONO, fontSize: 8, color: C.textSec, letterSpacing: 0.5 },
   histDate: { flex: 2.2 },
   histNum: { flex: 1, textAlign: 'right' },
@@ -472,6 +686,102 @@ const styles = StyleSheet.create({
   histValue: { fontSize: 11, color: C.text },
   histDrawValue: { fontSize: 11, color: C.accent, fontWeight: '700' },
   histUnit: { fontSize: 9, color: C.textSec, fontWeight: '400' },
-  histDelCol: { width: 24, alignItems: 'center', justifyContent: 'center' },
-  histDel: { fontFamily: MONO, fontSize: 12, color: C.red },
+  modeStatRow: { flexDirection: 'row', alignItems: 'baseline', paddingVertical: 4,
+    borderBottomWidth: 1, borderBottomColor: C.border },
+  modeStatLabel: { fontFamily: MONO, fontSize: 10, color: C.textSec, letterSpacing: 0.5, width: 80 },
+  modeStatValue: { fontFamily: MONO, fontSize: 13, color: C.accent, fontWeight: '700', flex: 1 },
+  modeStatCount: { fontFamily: MONO, fontSize: 9, color: C.textTer },
+  // Edit modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    padding: 16,
+  },
+  modalTitle: {
+    fontFamily: MONO,
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.accent,
+    letterSpacing: 2,
+    marginBottom: 2,
+  },
+  modalDate: {
+    fontFamily: MONO,
+    fontSize: 10,
+    color: C.textTer,
+    marginBottom: 12,
+  },
+  modalDrawRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modalDrawVal: {
+    fontFamily: MONO,
+    fontSize: 13,
+    color: C.accent,
+    fontWeight: '700',
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  modalCancel: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 6,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontFamily: MONO,
+    fontSize: 11,
+    color: C.textSec,
+    letterSpacing: 1,
+  },
+  modalSave: {
+    flex: 1,
+    backgroundColor: C.accent,
+    borderRadius: 6,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    fontFamily: MONO,
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.white,
+    letterSpacing: 1,
+  },
+  modalDeleteDivider: {
+    height: 1,
+    backgroundColor: C.border,
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  modalDelete: {
+    borderWidth: 1,
+    borderColor: C.red,
+    borderRadius: 6,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalDeleteText: {
+    fontFamily: MONO,
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.red,
+    letterSpacing: 1,
+  },
 });
