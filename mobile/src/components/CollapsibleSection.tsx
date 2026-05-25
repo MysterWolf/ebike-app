@@ -45,5 +45,5 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     flex: 1,
   },
-  badge: { fontFamily: MONO, fontSize: 9, color: C.textSec, marginRight: 10 },
+  badge: { fontFamily: MONO, fontSize: 9, color: C.inkMid, marginRight: 10 },
 });

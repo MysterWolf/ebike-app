@@ -50,14 +50,14 @@ const MOUNT_TYPES = ['Handlebar Mount', 'Stem Mount', 'Frame Mount', 'Other'];
 const PRIMARY_USES = ['Recording', 'Navigation', 'Music', 'All of the above'];
 
 const MOD_COLORS: Record<ModCategory, { bg: string; text: string }> = {
-  Tires:      { bg: C.amberBg,     text: C.amber },
-  Brakes:     { bg: C.redBg,       text: C.red },
-  Lighting:   { bg: 'rgba(255,204,0,0.1)', text: '#9a7000' },
-  Motor:      { bg: C.accentBg,    text: C.accent },
-  Battery:    { bg: C.accentBg,    text: C.accent },
-  Handlebars: { bg: C.surfaceAlt,  text: C.textSec },
-  Seat:       { bg: C.surfaceAlt,  text: C.textSec },
-  Other:      { bg: C.surfaceAlt,  text: C.textSec },
+  Tires:      { bg: 'rgba(196,136,58,0.15)',  text: C.warning },
+  Brakes:     { bg: 'rgba(192,57,43,0.15)',   text: C.danger },
+  Lighting:   { bg: 'rgba(255,204,0,0.1)',    text: '#9a7000' },
+  Motor:      { bg: 'rgba(196,169,98,0.15)',  text: C.accent },
+  Battery:    { bg: 'rgba(196,169,98,0.15)',  text: C.accent },
+  Handlebars: { bg: C.surface,               text: C.inkMid },
+  Seat:       { bg: C.surface,               text: C.inkMid },
+  Other:      { bg: C.surface,               text: C.inkMid },
 };
 
 function formatDate(): string {
@@ -370,7 +370,7 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
               value={state.rigDeviceName}
               onChangeText={v => update({ rigDeviceName: v })}
               placeholder="e.g. Samsung S8"
-              placeholderTextColor={C.textTer}
+              placeholderTextColor={C.muted}
               autoCorrect={false}
             />
           </View>
@@ -418,8 +418,8 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
             <Switch
               value={state.rigOnline}
               onValueChange={v => update({ rigOnline: v })}
-              trackColor={{ false: C.border, true: C.accentDim }}
-              thumbColor={state.rigOnline ? C.accent : C.textTer}
+              trackColor={{ false: C.border, true: 'rgba(196,169,98,0.15)' }}
+              thumbColor={state.rigOnline ? C.accent : C.muted}
             />
           </View>
 
@@ -523,7 +523,7 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
             onChangeText={setFrontPsiInput}
             keyboardType="decimal-pad"
             placeholder="Front PSI"
-            placeholderTextColor={C.textTer}
+            placeholderTextColor={C.muted}
           />
           <TextInput
             style={[styles.logInput, psiError && styles.inputError]}
@@ -531,7 +531,7 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
             onChangeText={setRearPsiInput}
             keyboardType="decimal-pad"
             placeholder="Rear PSI"
-            placeholderTextColor={C.textTer}
+            placeholderTextColor={C.muted}
           />
           <TouchableOpacity style={styles.logBtn} onPress={logPsi} activeOpacity={0.8}>
             <Text style={styles.logBtnText}>LOG</Text>
@@ -572,7 +572,7 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
           value={serviceNotes}
           onChangeText={setServiceNotes}
           placeholder="Notes — e.g. Rear tire swap, chain lube, brake pads..."
-          placeholderTextColor={C.textTer}
+          placeholderTextColor={C.muted}
           multiline
           numberOfLines={2}
         />
@@ -880,7 +880,7 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
                   placeholder={
                     modCategory === 'Tires' ? 'e.g. Kenda Juggernaut 26x4.0' : 'Component name...'
                   }
-                  placeholderTextColor={C.textTer}
+                  placeholderTextColor={C.muted}
                   autoCorrect={false}
                 />
               </View>
@@ -893,7 +893,7 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
                   value={modNotes}
                   onChangeText={setModNotes}
                   placeholder="Details about the mod..."
-                  placeholderTextColor={C.textTer}
+                  placeholderTextColor={C.muted}
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
@@ -916,23 +916,23 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: C.bg },
+  scroll: { flex: 1, backgroundColor: C.background },
   content: { padding: 12 },
 
   resetBtn: {
     fontFamily: MONO,
     fontSize: 8,
     letterSpacing: 1.5,
-    color: C.textSec,
+    color: C.inkMid,
     textDecorationLine: 'underline',
   },
   divider: { height: 1, backgroundColor: C.border, marginVertical: 12 },
 
-  toggleStatus: { fontFamily: MONO, fontSize: 9, color: C.textTer },
+  toggleStatus: { fontFamily: MONO, fontSize: 9, color: C.muted },
   toggleStatusOn: { color: C.accent },
 
   rigCard: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -948,12 +948,12 @@ const styles = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 8,
     letterSpacing: 1.5,
-    color: C.textSec,
+    color: C.inkMid,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   rigInput: {
-    backgroundColor: C.bg,
+    backgroundColor: C.background,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -961,7 +961,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontFamily: MONO,
     fontSize: 12,
-    color: C.text,
+    color: C.ink,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
@@ -970,10 +970,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: C.bg,
+    backgroundColor: C.background,
   },
-  chipActive: { backgroundColor: C.accentBg, borderColor: C.accentDim },
-  chipText: { fontFamily: MONO, fontSize: 10, color: C.textSec },
+  chipActive: { backgroundColor: 'rgba(196,169,98,0.15)', borderColor: 'rgba(196,169,98,0.15)' },
+  chipText: { fontFamily: MONO, fontSize: 10, color: C.inkMid },
   chipTextActive: { color: C.accent, fontWeight: '700' },
   rigToggleRow: {
     flexDirection: 'row',
@@ -987,10 +987,10 @@ const styles = StyleSheet.create({
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   progressTrack: { flex: 1, height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: 4, backgroundColor: C.accent, borderRadius: 2 },
-  progressLabel: { fontFamily: MONO, fontSize: 10, color: C.textSec, minWidth: 28, textAlign: 'right' },
+  progressLabel: { fontFamily: MONO, fontSize: 10, color: C.inkMid, minWidth: 28, textAlign: 'right' },
 
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -1018,13 +1018,13 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: C.accent, borderColor: C.accent },
   checkmark: { fontSize: 12, color: C.white, fontWeight: '700', lineHeight: 14 },
   checkContent: { flex: 1 },
-  checkLabel: { fontFamily: MONO, fontSize: 11, color: C.text, fontWeight: '600' },
-  checkLabelDone: { color: C.textTer, textDecorationLine: 'line-through' },
-  checkSublabel: { fontFamily: MONO, fontSize: 9, color: C.textSec, marginTop: 1 },
+  checkLabel: { fontFamily: MONO, fontSize: 11, color: C.ink, fontWeight: '600' },
+  checkLabelDone: { color: C.muted, textDecorationLine: 'line-through' },
+  checkSublabel: { fontFamily: MONO, fontSize: 9, color: C.inkMid, marginTop: 1 },
   logInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   logInput: {
     flex: 1,
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -1032,10 +1032,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontFamily: MONO,
     fontSize: 13,
-    color: C.text,
+    color: C.ink,
   },
-  inputError: { borderColor: C.red },
-  logInputUnit: { fontFamily: MONO, fontSize: 10, color: C.textSec },
+  inputError: { borderColor: C.danger },
+  logInputUnit: { fontFamily: MONO, fontSize: 10, color: C.inkMid },
   logBtn: {
     backgroundColor: C.accent,
     borderRadius: 6,
@@ -1046,29 +1046,29 @@ const styles = StyleSheet.create({
 
   logEntry: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
   pressureEntry: { paddingVertical: 8 },
-  pressureEntryValues: { fontFamily: MONO, fontSize: 11, color: C.textSec, marginTop: 2 },
-  pressureEntryNum: { color: C.text, fontWeight: '700' },
+  pressureEntryValues: { fontFamily: MONO, fontSize: 11, color: C.inkMid, marginTop: 2 },
+  pressureEntryNum: { color: C.ink, fontWeight: '700' },
   logEntryBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
-  logEntryValue: { fontFamily: MONO, fontSize: 13, fontWeight: '700', color: C.text },
-  logEntryUnit: { fontSize: 10, fontWeight: '400', color: C.textSec },
-  logEntryDate: { fontFamily: MONO, fontSize: 9, color: C.textSec },
-  emptyNote: { fontFamily: MONO, fontSize: 10, color: C.textTer, marginBottom: 2 },
+  logEntryValue: { fontFamily: MONO, fontSize: 13, fontWeight: '700', color: C.ink },
+  logEntryUnit: { fontSize: 10, fontWeight: '400', color: C.inkMid },
+  logEntryDate: { fontFamily: MONO, fontSize: 9, color: C.inkMid },
+  emptyNote: { fontFamily: MONO, fontSize: 10, color: C.muted, marginBottom: 2 },
 
   milestoneBadge: {
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
     borderWidth: 1,
-    borderColor: C.accentDim,
+    borderColor: 'rgba(196,169,98,0.15)',
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 10,
   },
-  milestoneBadgeAmber: { backgroundColor: C.amberBg, borderColor: 'rgba(255,149,0,0.3)' },
+  milestoneBadgeAmber: { backgroundColor: 'rgba(196,136,58,0.15)', borderColor: 'rgba(196,136,58,0.3)' },
   milestoneText: { fontFamily: MONO, fontSize: 10, letterSpacing: 0.5, color: C.accent, fontWeight: '700' },
-  milestoneTextAmber: { color: C.amber },
+  milestoneTextAmber: { color: C.warning },
 
   notesInput: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -1076,13 +1076,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontFamily: MONO,
     fontSize: 12,
-    color: C.text,
+    color: C.ink,
     marginBottom: 8,
     minHeight: 52,
     textAlignVertical: 'top',
   },
   logServiceBtn: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.accent,
     borderRadius: 6,
@@ -1091,18 +1091,18 @@ const styles = StyleSheet.create({
   },
   logServiceBtnText: { fontFamily: MONO, fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: C.accent },
 
-  entryDel: { fontFamily: MONO, fontSize: 12, color: C.red, paddingLeft: 8 },
+  entryDel: { fontFamily: MONO, fontSize: 12, color: C.danger, paddingLeft: 8 },
 
   svcEntry: { paddingVertical: 8 },
   svcEntryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
-  svcOdometer: { fontFamily: MONO, fontSize: 12, fontWeight: '700', color: C.text },
-  svcNotes: { fontFamily: MONO, fontSize: 10, color: C.textSec, lineHeight: 15 },
+  svcOdometer: { fontFamily: MONO, fontSize: 12, fontWeight: '700', color: C.ink },
+  svcNotes: { fontFamily: MONO, fontSize: 10, color: C.inkMid, lineHeight: 15 },
 
   // Mod log
   logModBtn: {
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
     borderWidth: 1,
-    borderColor: C.accentDim,
+    borderColor: 'rgba(196,169,98,0.15)',
     borderRadius: 5,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1110,7 +1110,7 @@ const styles = StyleSheet.create({
   logModBtnText: { fontFamily: MONO, fontSize: 9, fontWeight: '700', color: C.accent, letterSpacing: 1 },
 
   modCard: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -1134,16 +1134,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
   },
-  modDate: { fontFamily: MONO, fontSize: 9, color: C.textSec },
-  modComponent: { fontFamily: MONO, fontSize: 12, fontWeight: '700', color: C.text, marginBottom: 2 },
-  modNotes: { fontFamily: MONO, fontSize: 10, color: C.textSec, lineHeight: 15 },
+  modDate: { fontFamily: MONO, fontSize: 9, color: C.inkMid },
+  modComponent: { fontFamily: MONO, fontSize: 12, fontWeight: '700', color: C.ink, marginBottom: 2 },
+  modNotes: { fontFamily: MONO, fontSize: 10, color: C.inkMid, lineHeight: 15 },
 
   // AI section
   opsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -1152,11 +1152,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   opsBtnIcon: { fontSize: 14, width: 20, textAlign: 'center' },
-  opsBtnLabel: { flex: 1, fontFamily: MONO, fontSize: 11, letterSpacing: 1, color: C.text, fontWeight: '600' },
-  opsBtnArrow: { fontSize: 18, color: C.textTer },
+  opsBtnLabel: { flex: 1, fontFamily: MONO, fontSize: 11, letterSpacing: 1, color: C.ink, fontWeight: '600' },
+  opsBtnArrow: { fontSize: 18, color: C.muted },
 
   unlockCard: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 8,
@@ -1165,13 +1165,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   unlockIcon: { fontSize: 22, marginBottom: 2 },
-  unlockTitle: { fontFamily: MONO, fontSize: 12, fontWeight: '700', letterSpacing: 1, color: C.text },
-  unlockBody: { fontSize: 12, color: C.textSec, textAlign: 'center', lineHeight: 18, marginTop: 2 },
+  unlockTitle: { fontFamily: MONO, fontSize: 12, fontWeight: '700', letterSpacing: 1, color: C.ink },
+  unlockBody: { fontSize: 12, color: C.inkMid, textAlign: 'center', lineHeight: 18, marginTop: 2 },
   unlockCta: { fontFamily: MONO, fontSize: 10, color: C.accent, textAlign: 'center', marginTop: 4, letterSpacing: 0.3 },
 
   // Bike profile
   profileCard: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -1179,15 +1179,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 8,
   },
-  profileName: { fontFamily: MONO, fontSize: 14, fontWeight: '700', color: C.text },
-  profileSub: { fontFamily: MONO, fontSize: 10, color: C.textSec, marginTop: 2 },
+  profileName: { fontFamily: MONO, fontSize: 14, fontWeight: '700', color: C.ink },
+  profileSub: { fontFamily: MONO, fontSize: 10, color: C.inkMid, marginTop: 2 },
 
   // Data management
   dataBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -1195,20 +1195,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 6,
   },
-  dataBtnDestructive: { borderColor: 'rgba(255,59,48,0.3)', backgroundColor: C.redBg },
+  dataBtnDestructive: { borderColor: 'rgba(192,57,43,0.3)', backgroundColor: 'rgba(192,57,43,0.15)' },
   dataBtnIcon: { fontSize: 16, width: 20, textAlign: 'center', color: C.accent, fontWeight: '700' },
-  dataBtnIconDestructive: { color: C.red },
+  dataBtnIconDestructive: { color: C.danger },
   dataBtnContent: { flex: 1 },
-  dataBtnLabel: { fontFamily: MONO, fontSize: 11, fontWeight: '700', letterSpacing: 1, color: C.text },
-  dataBtnLabelDestructive: { color: C.red },
-  dataBtnSub: { fontFamily: MONO, fontSize: 9, color: C.textSec, marginTop: 2 },
-  dataBtnArrow: { fontSize: 18, color: C.textTer },
-  versionLabel: { fontSize: 11, color: C.textTer, textAlign: 'center', marginTop: 28, marginBottom: 4 },
+  dataBtnLabel: { fontFamily: MONO, fontSize: 11, fontWeight: '700', letterSpacing: 1, color: C.ink },
+  dataBtnLabelDestructive: { color: C.danger },
+  dataBtnSub: { fontFamily: MONO, fontSize: 9, color: C.inkMid, marginTop: 2 },
+  dataBtnArrow: { fontSize: 18, color: C.muted },
+  versionLabel: { fontSize: 11, color: C.muted, textAlign: 'center', marginTop: 28, marginBottom: 4 },
 
   // Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
   modalSheet: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
     maxHeight: '78%',
@@ -1227,8 +1227,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
-  modalTitle: { fontFamily: MONO, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, color: C.text },
-  modalCancel: { fontSize: 15, color: C.textSec },
+  modalTitle: { fontFamily: MONO, fontSize: 12, fontWeight: '700', letterSpacing: 1.5, color: C.ink },
+  modalCancel: { fontSize: 15, color: C.inkMid },
   modalSave: { fontSize: 15, color: C.accent, fontWeight: '700' },
 
   modalSection: { paddingHorizontal: 16, paddingTop: 14 },
@@ -1236,7 +1236,7 @@ const styles = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 8,
     letterSpacing: 1.5,
-    color: C.textSec,
+    color: C.inkMid,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -1247,13 +1247,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
   },
-  categoryChipText: { fontFamily: MONO, fontSize: 11, color: C.textSec },
+  categoryChipText: { fontFamily: MONO, fontSize: 11, color: C.inkMid },
 
   tireHint: {
     marginTop: 8,
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
     borderRadius: 5,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -1261,7 +1261,7 @@ const styles = StyleSheet.create({
   tireHintText: { fontFamily: MONO, fontSize: 9, color: C.accent, letterSpacing: 0.3 },
 
   modalInput: {
-    backgroundColor: C.bg,
+    backgroundColor: C.background,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -1269,8 +1269,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     fontFamily: MONO,
     fontSize: 13,
-    color: C.text,
+    color: C.ink,
   },
   modalNotesInput: { minHeight: 72, textAlignVertical: 'top' },
-  modalDateText: { fontFamily: MONO, fontSize: 12, color: C.textSec },
+  modalDateText: { fontFamily: MONO, fontSize: 12, color: C.inkMid },
 });

@@ -31,7 +31,7 @@ function Input(props: React.ComponentProps<typeof TextInput>) {
   return (
     <TextInput
       style={styles.input}
-      placeholderTextColor={C.textTer}
+      placeholderTextColor={C.muted}
       autoCorrect={false}
       {...props}
     />
@@ -228,7 +228,7 @@ export function SetupWizard({ onComplete }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: C.bg },
+  root:  { flex: 1, backgroundColor: C.background },
   flex:  { flex: 1 },
   scroll: {
     flexGrow: 1,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 10,
     letterSpacing: 3,
-    color: C.textSec,
+    color: C.inkMid,
     marginTop: 2,
   },
 
@@ -261,13 +261,13 @@ const styles = StyleSheet.create({
     backgroundColor: C.border,
   },
   dotActive: { backgroundColor: C.accent, width: 24 },
-  dotDone:   { backgroundColor: C.accentDim },
+  dotDone:   { backgroundColor: 'rgba(196,169,98,0.15)' },
 
   stepCounter: {
     fontFamily: MONO,
     fontSize: 8,
     letterSpacing: 2,
-    color: C.textTer,
+    color: C.muted,
     textAlign: 'center',
     marginBottom: 32,
   },
@@ -277,13 +277,13 @@ const styles = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 20,
     fontWeight: '700',
-    color: C.text,
+    color: C.ink,
     marginBottom: 6,
   },
   stepSub: {
     fontFamily: MONO,
     fontSize: 11,
-    color: C.textSec,
+    color: C.inkMid,
     lineHeight: 17,
   },
 
@@ -295,12 +295,12 @@ const styles = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 9,
     letterSpacing: 1,
-    color: C.textSec,
+    color: C.inkMid,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
   input: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 8,
@@ -308,11 +308,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontFamily: MONO,
     fontSize: 14,
-    color: C.text,
+    color: C.ink,
   },
 
   hint: {
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   skipBtnText: {
     fontFamily: MONO,
     fontSize: 13,
-    color: C.textSec,
+    color: C.inkMid,
   },
   nextBtn: {
     flex: 1,

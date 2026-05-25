@@ -143,7 +143,7 @@ export function GearTab({ state, update }: Props) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: C.bg },
+  scroll: { flex: 1, backgroundColor: C.background },
   content: { padding: 12 },
   section: {
     fontFamily: MONO,
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   gearLabel: {
     fontFamily: MONO,
     fontSize: 9,
-    color: C.textSec,
+    color: C.inkMid,
     letterSpacing: 0.5,
     marginBottom: 6,
   },
@@ -180,13 +180,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   warnBadge: {
-    backgroundColor: C.redBg,
+    backgroundColor: 'rgba(192,57,43,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255,59,48,0.25)',
+    borderColor: 'rgba(192,57,43,0.25)',
   },
   badgeText: {
     fontFamily: MONO,
     fontSize: 9,
-    color: C.red,
+    color: C.danger,
   },
 });

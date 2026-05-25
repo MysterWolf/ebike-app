@@ -39,7 +39,7 @@ function Field({
         onChangeText={onChangeText}
         keyboardType={keyboardType}
         placeholder={placeholder}
-        placeholderTextColor={C.textTer}
+        placeholderTextColor={C.muted}
       />
     </View>
   );
@@ -68,7 +68,7 @@ export function BikeTab({ state, update }: Props) {
             style={styles.input}
             value={state.make}
             onChangeText={v => update({ make: v })}
-            placeholderTextColor={C.textTer}
+            placeholderTextColor={C.muted}
           />
         </View>
         <View style={[styles.group, styles.flex1]}>
@@ -78,7 +78,7 @@ export function BikeTab({ state, update }: Props) {
             value={String(state.year)}
             onChangeText={v => update({ year: parseInt(v, 10) || state.year })}
             keyboardType="number-pad"
-            placeholderTextColor={C.textTer}
+            placeholderTextColor={C.muted}
           />
         </View>
       </View>
@@ -136,7 +136,7 @@ export function BikeTab({ state, update }: Props) {
           style={styles.input}
           value={state.tireSize}
           onChangeText={v => update({ tireSize: v, tireSizeFromMod: false })}
-          placeholderTextColor={C.textTer}
+          placeholderTextColor={C.muted}
         />
       </View>
 
@@ -161,7 +161,7 @@ export function BikeTab({ state, update }: Props) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: C.bg },
+  scroll: { flex: 1, backgroundColor: C.background },
   content: { padding: 12 },
   section: {
     fontFamily: MONO,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: C.accent,
     letterSpacing: 0.5,
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
     paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 3,
@@ -193,12 +193,12 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: MONO,
     fontSize: 9,
-    color: C.textSec,
+    color: C.inkMid,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   input: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -206,14 +206,14 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     fontFamily: MONO,
     fontSize: 12,
-    color: C.text,
+    color: C.ink,
   },
   divider: { height: 1, backgroundColor: C.border, marginVertical: 10 },
   inlineRow: { flexDirection: 'row', gap: 8 },
   flex1: { flex: 1 },
   flex2: { flex: 2 },
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -226,6 +226,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
-  specKey: { fontFamily: MONO, fontSize: 10, color: C.textSec },
-  specVal: { fontFamily: MONO, fontSize: 10, color: C.text, fontWeight: '600' },
+  specKey: { fontFamily: MONO, fontSize: 10, color: C.inkMid },
+  specVal: { fontFamily: MONO, fontSize: 10, color: C.ink, fontWeight: '600' },
 });

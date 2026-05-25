@@ -41,7 +41,7 @@ export function TabBar({ active, onSelect }: Props) {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 10,
     letterSpacing: 1,
-    color: C.textTer,
+    color: C.muted,
   },
   labelActive: {
     color: C.accent,

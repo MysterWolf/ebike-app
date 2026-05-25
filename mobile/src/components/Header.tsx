@@ -23,9 +23,9 @@ export function Header({ make, model, nickname }: Props) {
   return (
     <View style={styles.header}>
       <View>
-        <Text style={styles.title}>E-BIKE RANGE ANALYST</Text>
+        <Text style={styles.title}>MISSION CONTROL</Text>
         <Text style={styles.subtitle}>
-          {nickname || (model ? `${make} ${model}` : make)} — Mission Control
+          {nickname || (model ? `${make} ${model}` : make)}
         </Text>
       </View>
       <Animated.View style={[styles.dot, { opacity: pulse }]} />
@@ -35,7 +35,7 @@ export function Header({ make, model, nickname }: Props) {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
     paddingHorizontal: 16,
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: MONO,
     fontSize: 10,
-    color: C.textSec,
+    color: C.inkMid,
     letterSpacing: 0.5,
     marginTop: 2,
   },

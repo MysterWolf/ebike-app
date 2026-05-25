@@ -7,9 +7,9 @@ import { BleStatus, BLE_LOG_FILE } from '../services/BleService';
 import { useBleContext } from '../context/BleContext';
 
 const C = {
-  bg: '#0A0E1A', surface: '#141824', border: '#1E2535',
-  text: '#E8EDF5', muted: '#6B7A99', accent: '#1D6B3E',
-  amber: '#C4883A', danger: '#B85450', sage: '#1D9E75',
+  bg: '#1C1A15', surface: '#2A2720', border: '#3D3A32',
+  text: '#F0EDE6', muted: '#8A8780', accent: '#2D7A4F',
+  amber: '#C4883A', danger: '#C0392B', sage: '#2D7A4F',
   white: '#FFFFFF',
 };
 

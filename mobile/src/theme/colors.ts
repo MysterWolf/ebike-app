@@ -1,22 +1,22 @@
 import { Platform } from 'react-native';
 
-export const C = {
-  bg: '#f5f5f7',
-  surface: '#ffffff',
-  surfaceAlt: '#f0f0f5',
-  border: '#e2e2e7',
-  accent: '#00b870',
-  accentBg: '#e8f9f2',
-  accentDim: 'rgba(0,184,112,0.15)',
-  text: '#1c1c1e',
-  textSec: '#6e6e73',
-  textTer: '#aeaeb2',
-  amber: '#ff9500',
-  amberBg: 'rgba(255,149,0,0.08)',
-  red: '#ff3b30',
-  redBg: 'rgba(255,59,48,0.08)',
-  white: '#ffffff',
-  shadow: 'rgba(0,0,0,0.06)',
+export const theme = {
+  background: '#F7F6F3',
+  surface: '#EFEEE9',
+  border: '#DDDAD2',
+  ink: '#111009',
+  inkMid: '#3A3830',
+  muted: '#8A8780',
+  accent: '#C4A962',
+  accentDark: '#A08840',
+  live: '#2D7A4F',
+  white: '#FDFCFA',
+  danger: '#C0392B',
+  warning: '#C4883A',
+  dangerBg: '#2D1510',
 };
+
+export const C = theme;
+export default theme;
 
 export const MONO = Platform.OS === 'ios' ? 'Courier New' : 'monospace';

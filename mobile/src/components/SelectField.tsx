@@ -91,7 +91,7 @@ export function SelectField({ label, value, options, onChange, onAddCustom }: Pr
                   ref={inputRef}
                   style={styles.addInput}
                   placeholder={`New ${label.toLowerCase()} item...`}
-                  placeholderTextColor={C.textTer}
+                  placeholderTextColor={C.muted}
                   value={newItem}
                   onChangeText={setNewItem}
                   returnKeyType="done"
@@ -133,7 +133,7 @@ export function SelectField({ label, value, options, onChange, onAddCustom }: Pr
 
 const styles = StyleSheet.create({
   field: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -146,12 +146,12 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: MONO,
     fontSize: 12,
-    color: C.text,
+    color: C.ink,
     flex: 1,
   },
   chevron: {
     fontSize: 18,
-    color: C.textTer,
+    color: C.muted,
     marginLeft: 4,
   },
   backdrop: {
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   sheet: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
     maxHeight: '60%',
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 11,
     letterSpacing: 1,
-    color: C.textSec,
+    color: C.inkMid,
     textTransform: 'uppercase',
   },
   done: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   },
   cancel: {
     fontSize: 15,
-    color: C.textSec,
+    color: C.inkMid,
   },
   option: {
     flexDirection: 'row',
@@ -207,11 +207,11 @@ const styles = StyleSheet.create({
     borderBottomColor: C.border,
   },
   optionActive: {
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
   },
   optionText: {
     fontSize: 15,
-    color: C.text,
+    color: C.ink,
   },
   optionTextActive: {
     color: C.accent,
@@ -238,19 +238,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   addInput: {
-    backgroundColor: C.bg,
+    backgroundColor: C.background,
     borderWidth: 1,
     borderColor: C.accent,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    color: C.text,
+    color: C.ink,
   },
   addHint: {
     fontFamily: MONO,
     fontSize: 10,
-    color: C.textTer,
+    color: C.muted,
     letterSpacing: 0.3,
   },
 });

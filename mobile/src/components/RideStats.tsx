@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#16213e',
+    backgroundColor: '#2A2720',
     borderRadius: 12,
     rowGap: 12,
     columnGap: 12,
@@ -56,12 +56,12 @@ const styles = StyleSheet.create({
     width: '47%',
     alignItems: 'center',
     padding: 14,
-    backgroundColor: '#0f3460',
+    backgroundColor: '#3D3A32',
     borderRadius: 10,
   },
   label: {
     fontSize: 11,
-    color: '#8a9bb5',
+    color: '#8A8780',
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -69,9 +69,9 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#e0e0e0',
+    color: '#F0EDE6',
   },
   highlightValue: {
-    color: '#FF9800',
+    color: '#C4883A',
   },
 });

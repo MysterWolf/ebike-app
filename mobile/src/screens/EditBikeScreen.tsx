@@ -27,7 +27,7 @@ function Input(props: React.ComponentProps<typeof TextInput>) {
   return (
     <TextInput
       style={s.input}
-      placeholderTextColor={C.textTer}
+      placeholderTextColor={C.muted}
       autoCorrect={false}
       {...props}
     />
@@ -142,7 +142,7 @@ export function EditBikeScreen({ state, update, onBack }: Props) {
 }
 
 const s = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: C.bg },
+  root:  { flex: 1, backgroundColor: C.background },
   flex:  { flex: 1 },
   scroll: {
     flexGrow: 1,
@@ -182,7 +182,7 @@ const s = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 10,
     letterSpacing: 3,
-    color: C.textSec,
+    color: C.inkMid,
     marginTop: 2,
   },
 
@@ -191,13 +191,13 @@ const s = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 20,
     fontWeight: '700',
-    color: C.text,
+    color: C.ink,
     marginBottom: 6,
   },
   stepSub: {
     fontFamily: MONO,
     fontSize: 11,
-    color: C.textSec,
+    color: C.inkMid,
     lineHeight: 17,
   },
 
@@ -207,12 +207,12 @@ const s = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 9,
     letterSpacing: 1,
-    color: C.textSec,
+    color: C.inkMid,
     textTransform: 'uppercase',
     marginBottom: 6,
   },
   input: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 8,
@@ -220,18 +220,18 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     fontFamily: MONO,
     fontSize: 14,
-    color: C.text,
+    color: C.ink,
   },
 
   error: {
     fontFamily: MONO,
     fontSize: 11,
-    color: C.red,
+    color: C.danger,
     marginBottom: 12,
   },
 
   hint: {
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -258,7 +258,7 @@ const s = StyleSheet.create({
   cancelBtnText: {
     fontFamily: MONO,
     fontSize: 13,
-    color: C.textSec,
+    color: C.inkMid,
   },
   saveBtn: {
     flex: 1,

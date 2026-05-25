@@ -206,7 +206,7 @@ export function MissionControlScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: C.background },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.background },
   content: { flex: 1 },
 });

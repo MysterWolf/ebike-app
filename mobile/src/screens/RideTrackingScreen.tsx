@@ -188,7 +188,7 @@ export function RideTrackingScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#0a0a1a',
+    backgroundColor: '#1C1A15',
   },
   content: {
     padding: 20,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#e0e0e0',
+    color: '#F0EDE6',
     letterSpacing: 1,
   },
   speedSection: {
@@ -213,12 +213,12 @@ const styles = StyleSheet.create({
     borderRadius: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#2A2720',
     borderWidth: 3,
-    borderColor: '#2a2a4e',
+    borderColor: '#3D3A32',
   },
   idleText: {
-    color: '#4a4a6a',
+    color: '#8A8780',
     fontSize: 20,
     fontWeight: '600',
     letterSpacing: 2,
@@ -233,10 +233,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   startButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#2D7A4F',
   },
   stopButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: '#C0392B',
   },
   buttonText: {
     fontSize: 20,

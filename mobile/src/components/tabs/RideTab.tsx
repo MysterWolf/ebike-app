@@ -33,14 +33,14 @@ function InputField(props: React.ComponentProps<typeof TextInput>) {
   return (
     <TextInput
       style={styles.input}
-      placeholderTextColor={C.textTer}
+      placeholderTextColor={C.muted}
       {...props}
     />
   );
 }
 
 function BatteryBar({ pct }: { pct: number }) {
-  const color = pct < 20 ? C.red : pct < 35 ? C.amber : C.accent;
+  const color = pct < 20 ? C.danger : pct < 35 ? C.warning : C.accent;
   return (
     <View style={styles.barTrack}>
       <View style={[styles.barFill, { width: `${Math.min(100, pct)}%` as any, backgroundColor: color }]} />
@@ -70,7 +70,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     ? telemetry.battery_pct
     : state.battery;
 
-  const batColor = liveBat < 20 ? C.red : liveBat < 35 ? C.amber : C.accent;
+  const batColor = liveBat < 20 ? C.danger : liveBat < 35 ? C.warning : C.accent;
 
   function logCharge() {
     const pct = parseFloat(chargedToInput);
@@ -553,7 +553,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: C.bg },
+  scroll: { flex: 1, backgroundColor: C.background },
   content: { padding: 12 },
   section: {
     fontFamily: MONO,
@@ -568,12 +568,12 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: MONO,
     fontSize: 9,
-    color: C.textSec,
+    color: C.inkMid,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   input: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -581,24 +581,24 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     fontFamily: MONO,
     fontSize: 13,
-    color: C.text,
+    color: C.ink,
   },
-  inputError: { borderColor: C.red },
+  inputError: { borderColor: C.danger },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   batValue: { fontFamily: MONO, fontSize: 16, fontWeight: '700' },
   batControls: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   stepper: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  stepperText: { fontFamily: MONO, fontSize: 12, color: C.textSec },
+  stepperText: { fontFamily: MONO, fontSize: 12, color: C.inkMid },
   batInput: {
     flex: 1,
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     fontFamily: MONO,
     fontSize: 13,
-    color: C.text,
+    color: C.ink,
     textAlign: 'center',
   },
   barTrack: { height: 5, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
@@ -619,15 +619,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingVertical: 8,
     alignItems: 'center',
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
   },
   modeBtnActive: { backgroundColor: C.accent, borderColor: C.accent },
-  modeBtnLabel: { fontFamily: MONO, fontSize: 11, fontWeight: '700', color: C.textSec, letterSpacing: 1 },
-  modeBtnSub: { fontFamily: MONO, fontSize: 9, color: C.textTer, marginTop: 2 },
+  modeBtnLabel: { fontFamily: MONO, fontSize: 11, fontWeight: '700', color: C.inkMid, letterSpacing: 1 },
+  modeBtnSub: { fontFamily: MONO, fontSize: 9, color: C.muted, marginTop: 2 },
   modeBtnLabelActive: { color: C.white },
   divider: { height: 1, backgroundColor: C.border, marginVertical: 10 },
   card: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: MONO,
     fontSize: 8,
-    color: C.textSec,
+    color: C.inkMid,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -654,10 +654,10 @@ const styles = StyleSheet.create({
   actionBtnText: { fontFamily: MONO, fontSize: 11, fontWeight: '700', color: C.white, letterSpacing: 1 },
   logModeRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   logModePill: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 4,
-    paddingVertical: 6, alignItems: 'center', backgroundColor: C.bg },
+    paddingVertical: 6, alignItems: 'center', backgroundColor: C.background },
   logModePillActive: { backgroundColor: C.accent, borderColor: C.accent },
   logModePillText: { fontFamily: MONO, fontSize: 9, fontWeight: '700',
-    color: C.textSec, letterSpacing: 0.5 },
+    color: C.inkMid, letterSpacing: 0.5 },
   logModePillTextActive: { color: C.white },
   logRideBtn: {
     backgroundColor: C.accent,
@@ -677,20 +677,20 @@ const styles = StyleSheet.create({
   histEntry: { paddingVertical: 5 },
   histEntryBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
   histRow: { flexDirection: 'row' },
-  modeBadge: { fontFamily: MONO, fontSize: 9, color: C.textTer, letterSpacing: 0.5,
+  modeBadge: { fontFamily: MONO, fontSize: 9, color: C.muted, letterSpacing: 0.5,
     marginTop: 3, marginBottom: 1 },
-  histCell: { fontFamily: MONO, fontSize: 8, color: C.textSec, letterSpacing: 0.5 },
+  histCell: { fontFamily: MONO, fontSize: 8, color: C.inkMid, letterSpacing: 0.5 },
   histDate: { flex: 2.2 },
   histNum: { flex: 1, textAlign: 'right' },
   histDraw: { flex: 1.4, textAlign: 'right' },
-  histValue: { fontSize: 11, color: C.text },
+  histValue: { fontSize: 11, color: C.ink },
   histDrawValue: { fontSize: 11, color: C.accent, fontWeight: '700' },
-  histUnit: { fontSize: 9, color: C.textSec, fontWeight: '400' },
+  histUnit: { fontSize: 9, color: C.inkMid, fontWeight: '400' },
   modeStatRow: { flexDirection: 'row', alignItems: 'baseline', paddingVertical: 4,
     borderBottomWidth: 1, borderBottomColor: C.border },
-  modeStatLabel: { fontFamily: MONO, fontSize: 10, color: C.textSec, letterSpacing: 0.5, width: 80 },
+  modeStatLabel: { fontFamily: MONO, fontSize: 10, color: C.inkMid, letterSpacing: 0.5, width: 80 },
   modeStatValue: { fontFamily: MONO, fontSize: 13, color: C.accent, fontWeight: '700', flex: 1 },
-  modeStatCount: { fontFamily: MONO, fontSize: 9, color: C.textTer },
+  modeStatCount: { fontFamily: MONO, fontSize: 9, color: C.muted },
   // Edit modal styles
   modalOverlay: {
     flex: 1,
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalCard: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 10,
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
   modalDate: {
     fontFamily: MONO,
     fontSize: 10,
-    color: C.textTer,
+    color: C.muted,
     marginBottom: 12,
   },
   modalDrawRow: {
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontFamily: MONO,
     fontSize: 11,
-    color: C.textSec,
+    color: C.inkMid,
     letterSpacing: 1,
   },
   modalSave: {
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
   },
   modalDelete: {
     borderWidth: 1,
-    borderColor: C.red,
+    borderColor: C.danger,
     borderRadius: 6,
     paddingVertical: 10,
     alignItems: 'center',
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
     fontFamily: MONO,
     fontSize: 11,
     fontWeight: '700',
-    color: C.red,
+    color: C.danger,
     letterSpacing: 1,
   },
 });

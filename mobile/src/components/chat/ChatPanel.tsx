@@ -98,7 +98,7 @@ export function ChatPanel({ state, update, isTyping, onSend }: Props) {
 
   const apiKeySet = state.apiKey && state.apiKey.length > 10;
   const apiKeyValid = apiKeySet && state.apiKey.startsWith('sk-ant');
-  const dotColor = apiKeyValid ? C.accent : apiKeySet ? C.amber : C.textTer;
+  const dotColor = apiKeyValid ? C.accent : apiKeySet ? C.warning : C.muted;
 
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -125,7 +125,7 @@ export function ChatPanel({ state, update, isTyping, onSend }: Props) {
           value={state.apiKey}
           onChangeText={v => update({ apiKey: v })}
           placeholder="sk-ant-api03-..."
-          placeholderTextColor={C.textTer}
+          placeholderTextColor={C.muted}
           secureTextEntry
           autoCorrect={false}
           autoCapitalize="none"
@@ -174,7 +174,7 @@ export function ChatPanel({ state, update, isTyping, onSend }: Props) {
           value={input}
           onChangeText={setInput}
           placeholder="Ask the analyst..."
-          placeholderTextColor={C.textTer}
+          placeholderTextColor={C.muted}
           multiline
           returnKeyType="send"
           onSubmitEditing={send}
@@ -194,26 +194,26 @@ export function ChatPanel({ state, update, isTyping, onSend }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { flex: 1, backgroundColor: C.background },
   apiRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
   apiLabel: {
     fontFamily: MONO,
     fontSize: 9,
-    color: C.textSec,
+    color: C.inkMid,
     letterSpacing: 0.5,
   },
   apiInput: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: C.background,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 6,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     fontFamily: MONO,
     fontSize: 11,
-    color: C.text,
+    color: C.ink,
   },
   apiDot: {
     width: 8,
@@ -245,24 +245,24 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   bubbleUser: {
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
     borderWidth: 1,
-    borderColor: C.accentDim,
+    borderColor: 'rgba(196,169,98,0.15)',
   },
   bubbleAssistant: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
   },
   bubbleSystem: {
-    backgroundColor: C.accentBg,
+    backgroundColor: 'rgba(196,169,98,0.15)',
     borderWidth: 1,
-    borderColor: C.accentDim,
+    borderColor: 'rgba(196,169,98,0.15)',
   },
   bubbleText: {
     fontSize: 13,
     lineHeight: 19,
-    color: C.text,
+    color: C.ink,
   },
   systemText: {
     fontFamily: MONO,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   msgTime: {
     fontFamily: MONO,
     fontSize: 9,
-    color: C.textTer,
+    color: C.muted,
     marginLeft: 4,
   },
   msgTimeUser: { marginLeft: 0, marginRight: 4 },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   typingBubble: {
     flexDirection: 'row',
     gap: 5,
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 10,
@@ -292,10 +292,10 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: C.textSec,
+    backgroundColor: C.inkMid,
   },
   quickScroll: {
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderTopWidth: 1,
     borderTopColor: C.border,
     maxHeight: 44,
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   quickBtn: {
-    backgroundColor: C.bg,
+    backgroundColor: C.background,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 14,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
   quickLabel: {
     fontFamily: MONO,
     fontSize: 11,
-    color: C.textSec,
+    color: C.inkMid,
   },
   inputBar: {
     flexDirection: 'row',
@@ -325,20 +325,20 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    backgroundColor: C.surface,
+    backgroundColor: C.white,
     borderTopWidth: 1,
     borderTopColor: C.border,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: C.bg,
+    backgroundColor: C.background,
     borderWidth: 1,
     borderColor: C.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 14,
-    color: C.text,
+    color: C.ink,
     lineHeight: 20,
     minHeight: 40,
   maxHeight: 80,
