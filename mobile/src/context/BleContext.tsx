@@ -1,16 +1,21 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { ToastAndroid } from 'react-native';
+import { ToastAndroid, PermissionsAndroid, Platform } from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
 import { BleService, BleStatus, V70Telemetry } from '../services/BleService';
 import { dbRun } from '../db/database';
+import { haversineDistanceMiles, metersPerSecondToMph } from '../utils/rideCalculations';
 
 interface BleContextValue {
-  status:      BleStatus;
-  statusMsg:   string;
-  telemetry:   V70Telemetry | null;
-  log:         string[];
-  connect:     () => Promise<void>;
-  disconnect:  () => Promise<void>;
-  setRideMode: (mode: string) => void;
+  status:       BleStatus;
+  statusMsg:    string;
+  telemetry:    V70Telemetry | null;
+  log:          string[];
+  connect:      () => Promise<void>;
+  disconnect:   () => Promise<void>;
+  setRideMode:  (mode: string) => void;
+  gpsSpeedMph:  number | null;   // live GPS speed; null when not riding
+  gpsDistMiles: number;          // accumulated GPS distance for the current ride
+  liveDrawRate: number | null;   // (battery_start - battery_now) / gpsDistMiles; null < 0.1 mi
 }
 
 const BleContext = createContext<BleContextValue | null>(null);
@@ -37,6 +42,18 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   const gotFirstTelemetryRef = useRef(false);
   const prevStatusRef        = useRef<BleStatus>(BleService.getStatus());
 
+  // GPS tracking refs — reset at ride start, read at ride end
+  const gpsWatchIdRef   = useRef<number | null>(null);
+  const gpsDistRef      = useRef<number>(0);
+  const gpsLastPosRef   = useRef<{ lat: number; lon: number } | null>(null);
+  const [gpsSpeedMph,  setGpsSpeedMph]  = useState<number | null>(null);
+  const [gpsDistMiles, setGpsDistMiles] = useState<number>(0);
+
+  // Battery pct refs — prefer direct pct over voltage conversion
+  const startBattPctRef = useRef<number | null>(null);
+  const lastBattPctRef  = useRef<number | null>(null);
+  const [liveDrawRate, setLiveDrawRate] = useState<number | null>(null);
+
   const addLog = useCallback((msg: string) => {
     setLog(prev => [`${new Date().toLocaleTimeString()} ${msg}`, ...prev.slice(0, 49)]);
   }, []);
@@ -58,17 +75,22 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const startV  = startBattVRef.current;
-    const endV    = lastBattVRef.current;
-    const tripRaw = lastTripRawRef.current ?? 0;
-    const distKm  = tripRaw * 0.1;
-    const distMi  = distKm / 1.60934;
+    const startV = startBattVRef.current;
+    const endV   = lastBattVRef.current;
 
-    // V = buf[5]/3; 14S pack: 42V empty → 58.8V full → range 16.8V
+    // GPS distance is authoritative. Fall back to trip_raw only if GPS
+    // never acquired a fix (gpsDistRef still 0 after a 2+ minute ride).
+    const distMi  = gpsDistRef.current > 0
+      ? gpsDistRef.current
+      : (lastTripRawRef.current ?? 0) * 0.1 / 1.60934;
+    const distKm  = distMi * 1.60934;
+
+    // Prefer direct battery_pct from telemetry; fall back to voltage conversion
+    // if pct refs were never populated (e.g. BLE connected but no packets received).
     const vToPct = (v: number | null): number | null =>
       v != null ? Math.max(0, Math.min(100, Math.round((v - 42) / 16.8 * 100))) : null;
-    const startPct = vToPct(startV);
-    const endPct   = vToPct(endV);
+    const startPct = startBattPctRef.current ?? vToPct(startV);
+    const endPct   = lastBattPctRef.current  ?? vToPct(endV);
     const battUsed = (startPct != null && endPct != null) ? Math.max(0, startPct - endPct) : 0;
     const drawRate = distMi > 0 ? battUsed / distMi : 0;
 
@@ -104,6 +126,53 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []); // refs only — no deps needed
 
+  const startGpsWatch = useCallback(async () => {
+    if (Platform.OS === 'android') {
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+      );
+      if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+        console.warn('[GPS] Location permission denied');
+        return;
+      }
+    }
+    gpsDistRef.current    = 0;
+    gpsLastPosRef.current = null;
+    setGpsDistMiles(0);
+    setGpsSpeedMph(null);
+
+    gpsWatchIdRef.current = Geolocation.watchPosition(
+      pos => {
+        const mph = Math.max(0, metersPerSecondToMph(pos.coords.speed ?? 0));
+        setGpsSpeedMph(mph);
+        if (gpsLastPosRef.current) {
+          const delta = haversineDistanceMiles(
+            gpsLastPosRef.current.lat,
+            gpsLastPosRef.current.lon,
+            pos.coords.latitude,
+            pos.coords.longitude,
+          );
+          gpsDistRef.current += delta;
+          setGpsDistMiles(gpsDistRef.current);
+        }
+        gpsLastPosRef.current = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      },
+      err => console.warn('[GPS] Error:', err.message),
+      { enableHighAccuracy: true, distanceFilter: 5, interval: 1000, fastestInterval: 500 }
+    );
+    console.log('[GPS] Watch started');
+  }, []); // only refs + stable setters
+
+  const stopGpsWatch = useCallback(() => {
+    if (gpsWatchIdRef.current !== null) {
+      Geolocation.clearWatch(gpsWatchIdRef.current);
+      gpsWatchIdRef.current = null;
+    }
+    setGpsSpeedMph(null);
+    setLiveDrawRate(null);
+    console.log('[GPS] Watch stopped');
+  }, []);
+
   useEffect(() => {
     BleService.setStatusCallback((s, msg) => {
       const prev = prevStatusRef.current;
@@ -116,11 +185,15 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
         startBattVRef.current        = null;
         lastBattVRef.current         = null;
         lastTripRawRef.current       = null;
+        startBattPctRef.current      = null;
+        lastBattPctRef.current       = null;
         console.log('[AutoRide] Ride started');
+        startGpsWatch();
       }
 
       // ── Ride END ──────────────────────────────────────────────────────────
       if (prev === 'connected' && (s === 'disconnected' || s === 'error')) {
+        stopGpsWatch();
         finalizeAutoRide();
       }
 
@@ -133,17 +206,26 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
       setTelemetry({ ...t });
       if (t.raw_notify_2) addLog(`N2: ${t.raw_notify_2}`);
 
-      // First telemetry packet after connect → capture start_battery_v
+      // First telemetry packet after connect → capture start battery
       if (!gotFirstTelemetryRef.current && t.battery_v != null) {
         startBattVRef.current        = t.battery_v;
+        startBattPctRef.current      = t.battery_pct ?? null;
         gotFirstTelemetryRef.current = true;
-        console.log('[AutoRide] Start battery_v:', t.battery_v);
+        console.log('[AutoRide] Start battery_v:', t.battery_v, 'pct:', t.battery_pct);
       }
       // Always update last-known values for ride-end snapshot
-      if (t.battery_v != null) lastBattVRef.current  = t.battery_v;
-      if (t.trip_raw  != null) lastTripRawRef.current = t.trip_raw;
+      if (t.battery_v   != null) lastBattVRef.current   = t.battery_v;
+      if (t.battery_pct != null) lastBattPctRef.current  = t.battery_pct;
+      if (t.trip_raw    != null) lastTripRawRef.current  = t.trip_raw;
+
+      // Live draw rate: (battery_start_pct - battery_now_pct) / gpsDistMiles
+      // Suppress below 0.1 mi — prevents divide-by-near-zero at ride start.
+      if (startBattPctRef.current != null && t.battery_pct != null && gpsDistRef.current >= 0.1) {
+        const rate = (startBattPctRef.current - t.battery_pct) / gpsDistRef.current;
+        setLiveDrawRate(Math.max(0, rate));
+      }
     });
-  }, [addLog, finalizeAutoRide]);
+  }, [addLog, finalizeAutoRide, startGpsWatch, stopGpsWatch]);
 
   const connect = useCallback(async () => {
     addLog('Starting scan for V70...');
@@ -161,7 +243,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <BleContext.Provider value={{ status, statusMsg, telemetry, log, connect, disconnect, setRideMode }}>
+    <BleContext.Provider value={{ status, statusMsg, telemetry, log, connect, disconnect, setRideMode, gpsSpeedMph, gpsDistMiles, liveDrawRate }}>
       {children}
     </BleContext.Provider>
   );

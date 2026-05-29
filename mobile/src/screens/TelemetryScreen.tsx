@@ -1,19 +1,13 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Platform, Share, Alert,
 } from 'react-native';
 import RNFS from 'react-native-fs';
 import { BleStatus, BLE_LOG_FILE } from '../services/BleService';
 import { useBleContext } from '../context/BleContext';
+import { useTheme, InstrumentColors } from '../theme/ThemeContext';
 
-const C = {
-  bg: '#1C1A15', surface: '#2A2720', border: '#3D3A32',
-  text: '#F0EDE6', muted: '#8A8780', accent: '#2D7A4F',
-  amber: '#C4883A', danger: '#C0392B', sage: '#2D7A4F',
-  white: '#FFFFFF',
-};
-
-function StatusDot({ status }: { status: BleStatus }) {
+function StatusDot({ status, C }: { status: BleStatus; C: InstrumentColors }) {
   const color = status === 'connected' ? C.sage
     : status === 'connecting' || status === 'scanning' ? C.amber
     : status === 'error' ? C.danger : C.muted;
@@ -22,28 +16,65 @@ function StatusDot({ status }: { status: BleStatus }) {
   );
 }
 
-function ByteGrid({ hex, label }: { hex: string; label: string }) {
+function ByteGrid({ hex, label, C }: { hex: string; label: string; C: InstrumentColors }) {
   if (!hex) return null;
   const bytes = hex.match(/.{1,2}/g) ?? [];
   return (
-    <View style={s.byteCard}>
-      <Text style={s.byteLabel}>{label}</Text>
-      <View style={s.byteGrid}>
+    <View style={{ backgroundColor: C.surface, borderRadius: 10,
+      borderWidth: 0.5, borderColor: C.border, padding: 14 }}>
+      <Text style={{ fontSize: 11, color: C.muted, letterSpacing: 0.6,
+        textTransform: 'uppercase', marginBottom: 10 }}>{label}</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
         {bytes.map((b, i) => (
-          <View key={i} style={s.byteCell}>
-            <Text style={s.byteIndex}>{i}</Text>
-            <Text style={s.byteHex}>{b}</Text>
-            <Text style={s.byteDec}>{parseInt(b, 16)}</Text>
+          <View key={i} style={{ backgroundColor: C.bg, borderRadius: 4, borderWidth: 0.5,
+            borderColor: C.border, padding: 6, alignItems: 'center', minWidth: 44 }}>
+            <Text style={{ fontSize: 8, color: C.muted }}>{i}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '500', color: C.sage }}>{b}</Text>
+            <Text style={{ fontSize: 10, color: C.muted }}>{parseInt(b, 16)}</Text>
           </View>
         ))}
       </View>
-      <Text style={s.byteRaw}>{hex}</Text>
+      <Text style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>{hex}</Text>
     </View>
   );
 }
 
 export function TelemetryScreen() {
-  const { status, statusMsg, telemetry, log, connect, disconnect } = useBleContext();
+  const { instrC: C } = useTheme();
+  const { status, statusMsg, telemetry, log, connect, disconnect, gpsSpeedMph, liveDrawRate } = useBleContext();
+
+  const s = useMemo(() => StyleSheet.create({
+    root:    { flex: 1, backgroundColor: C.bg },
+    header:  { paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 60 : 28,
+      paddingBottom: 16, borderBottomWidth: 0.5, borderBottomColor: C.border },
+    title:   { fontSize: 22, fontWeight: '500', color: C.text, letterSpacing: 0.3 },
+    statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+    statusText: { fontSize: 12, color: C.muted },
+    scroll:  { flex: 1 },
+    scrollContent: { padding: 16, gap: 12 },
+    connectBtn: { backgroundColor: C.sage, borderRadius: 8,
+      paddingVertical: 14, alignItems: 'center' },
+    connectBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '500' },
+    logBtn: { borderRadius: 8, paddingVertical: 10, alignItems: 'center',
+      borderWidth: 0.5, borderColor: C.border },
+    logBtnText: { color: C.muted, fontSize: 13 },
+    section: { backgroundColor: C.surface, borderRadius: 10,
+      borderWidth: 0.5, borderColor: C.border, padding: 14, gap: 8 },
+    sectionTitle: { fontSize: 11, color: C.muted, letterSpacing: 0.6,
+      textTransform: 'uppercase', marginBottom: 4 },
+    metricRow: { flexDirection: 'row', justifyContent: 'space-between',
+      paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: C.border },
+    metricLabel: { fontSize: 14, color: C.muted },
+    metricValue: { fontSize: 14, fontWeight: '500', color: C.text },
+    byteGridHeader: { flexDirection: 'row', alignItems: 'center',
+      justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 2 },
+    checksumRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    checksumDot: { width: 7, height: 7, borderRadius: 3.5 },
+    checksumLabel: { fontSize: 10, color: C.muted },
+    logCard:   { backgroundColor: C.surface, borderRadius: 10,
+      borderWidth: 0.5, borderColor: C.border, padding: 14, gap: 4 },
+    logLine:   { fontSize: 11, color: C.muted, fontFamily: 'monospace', lineHeight: 18 },
+  }), [C]);
 
   const handleConnect = useCallback(async () => {
     if (status === 'connected') {
@@ -79,7 +110,7 @@ export function TelemetryScreen() {
       <View style={s.header}>
         <Text style={s.title}>V70 Telemetry</Text>
         <View style={s.statusRow}>
-          <StatusDot status={status} />
+          <StatusDot status={status} C={C} />
           <Text style={s.statusText}>{status}{statusMsg ? ` — ${statusMsg}` : ''}</Text>
         </View>
       </View>
@@ -104,13 +135,13 @@ export function TelemetryScreen() {
           <View style={s.section}>
             <Text style={s.sectionTitle}>Live telemetry</Text>
 
-            {/* Speed — not in packet yet */}
             <View style={s.metricRow}>
               <Text style={s.metricLabel}>Speed</Text>
-              <Text style={[s.metricValue, { color: C.muted }]}>—</Text>
+              <Text style={[s.metricValue, gpsSpeedMph == null && { color: C.muted }]}>
+                {gpsSpeedMph != null ? `${gpsSpeedMph.toFixed(1)} mph` : '— GPS'}
+              </Text>
             </View>
 
-            {/* Battery voltage + percentage */}
             <View style={s.metricRow}>
               <Text style={s.metricLabel}>Battery</Text>
               <Text style={[s.metricValue, telemetry.battery_v == null && { color: C.muted }]}>
@@ -120,7 +151,6 @@ export function TelemetryScreen() {
               </Text>
             </View>
 
-            {/* PAS / assist level */}
             <View style={s.metricRow}>
               <Text style={s.metricLabel}>Assist (PAS)</Text>
               <Text style={[s.metricValue, telemetry.assist_level == null && { color: C.muted }]}>
@@ -128,7 +158,6 @@ export function TelemetryScreen() {
               </Text>
             </View>
 
-            {/* Motor power */}
             <View style={s.metricRow}>
               <Text style={s.metricLabel}>Motor power</Text>
               <Text style={[s.metricValue, telemetry.motor_w == null && { color: C.muted }]}>
@@ -136,7 +165,6 @@ export function TelemetryScreen() {
               </Text>
             </View>
 
-            {/* Trip distance */}
             {(() => {
               const km  = telemetry.trip_raw != null ? +(telemetry.trip_raw * 0.1).toFixed(1) : null;
               const mi  = km != null ? +(km * 0.621371).toFixed(2) : null;
@@ -150,7 +178,13 @@ export function TelemetryScreen() {
               );
             })()}
 
-            {/* Odometer */}
+            <View style={s.metricRow}>
+              <Text style={s.metricLabel}>Draw rate</Text>
+              <Text style={[s.metricValue, liveDrawRate == null && { color: C.muted }]}>
+                {liveDrawRate != null ? `${liveDrawRate.toFixed(2)} %/mi` : '—'}
+              </Text>
+            </View>
+
             {(() => {
               const km  = telemetry.odometer_raw != null ? +(telemetry.odometer_raw * 0.1).toFixed(1) : null;
               const mi  = km != null ? +(km * 0.621371).toFixed(1) : null;
@@ -182,7 +216,7 @@ export function TelemetryScreen() {
                 </View>
               )}
             </View>
-            <ByteGrid hex={telemetry.raw_notify_2} label="" />
+            <ByteGrid hex={telemetry.raw_notify_2} label="" C={C} />
           </View>
         )}
 
@@ -200,47 +234,3 @@ export function TelemetryScreen() {
     </View>
   );
 }
-
-const s = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: C.bg },
-  header:  { paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 60 : 28,
-    paddingBottom: 16, borderBottomWidth: 0.5, borderBottomColor: C.border },
-  title:   { fontSize: 22, fontWeight: '500', color: C.text, letterSpacing: 0.3 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  statusText: { fontSize: 12, color: C.muted },
-  scroll:  { flex: 1 },
-  scrollContent: { padding: 16, gap: 12 },
-  connectBtn: { backgroundColor: C.accent, borderRadius: 8,
-    paddingVertical: 14, alignItems: 'center' },
-  connectBtnText: { color: C.white, fontSize: 15, fontWeight: '500' },
-  logBtn: { borderRadius: 8, paddingVertical: 10, alignItems: 'center',
-    borderWidth: 0.5, borderColor: C.border },
-  logBtnText: { color: C.muted, fontSize: 13 },
-  section: { backgroundColor: C.surface, borderRadius: 10,
-    borderWidth: 0.5, borderColor: C.border, padding: 14, gap: 8 },
-  sectionTitle: { fontSize: 11, color: C.muted, letterSpacing: 0.6,
-    textTransform: 'uppercase', marginBottom: 4 },
-  metricRow: { flexDirection: 'row', justifyContent: 'space-between',
-    paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: C.border },
-  metricLabel: { fontSize: 14, color: C.muted },
-  metricValue: { fontSize: 14, fontWeight: '500', color: C.text },
-  byteGridHeader: { flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 6, paddingHorizontal: 2 },
-  checksumRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  checksumDot: { width: 7, height: 7, borderRadius: 3.5 },
-  checksumLabel: { fontSize: 10, color: C.muted },
-  byteCard: { backgroundColor: C.surface, borderRadius: 10,
-    borderWidth: 0.5, borderColor: C.border, padding: 14 },
-  byteLabel: { fontSize: 11, color: C.muted, letterSpacing: 0.6,
-    textTransform: 'uppercase', marginBottom: 10 },
-  byteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
-  byteCell: { backgroundColor: C.bg, borderRadius: 4, borderWidth: 0.5,
-    borderColor: C.border, padding: 6, alignItems: 'center', minWidth: 44 },
-  byteIndex: { fontSize: 8, color: C.muted },
-  byteHex:   { fontSize: 13, fontWeight: '500', color: C.sage },
-  byteDec:   { fontSize: 10, color: C.muted },
-  byteRaw:   { fontSize: 11, color: C.muted, fontFamily: 'monospace' },
-  logCard:   { backgroundColor: C.surface, borderRadius: 10,
-    borderWidth: 0.5, borderColor: C.border, padding: 14, gap: 4 },
-  logLine:   { fontSize: 11, color: C.muted, fontFamily: 'monospace', lineHeight: 18 },
-});

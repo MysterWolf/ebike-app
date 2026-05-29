@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   StatusBar, SafeAreaView, StyleSheet,
   View, Text, ActivityIndicator, Pressable,
@@ -6,11 +6,13 @@ import {
 import { MissionControlScreen } from './src/screens/MissionControlScreen';
 import { TelemetryScreen } from './src/screens/TelemetryScreen';
 import { BleProvider } from './src/context/BleContext';
-import { C } from './src/theme/colors';
+import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { initDb } from './src/db/database';
 import { migrateJsonToSqlite } from './src/db/migrate_json';
+import { MWSSplash } from './src/components/shared/MWSSplash';
 
-function App(): React.JSX.Element {
+function AppContent(): React.JSX.Element {
+  const { C, resolvedMode } = useTheme();
   const [ready,  setReady]  = useState(false);
   const [error,  setError]  = useState<string | null>(null);
   const [migMsg, setMigMsg] = useState<string | null>(null);
@@ -33,7 +35,6 @@ function App(): React.JSX.Element {
           }
         }
         if (!result.success) console.warn('[App] Migration failed:', result.error);
-
         setReady(true);
       } catch (err: any) {
         if (!cancelled) setError(err.message ?? 'Failed to initialise database');
@@ -43,9 +44,28 @@ function App(): React.JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const styles = useMemo(() => StyleSheet.create({
+    container:   { flex: 1, backgroundColor: C.surface },
+    center:      { alignItems: 'center', justifyContent: 'center', gap: 12 },
+    tabBar:      { flexDirection: 'row', backgroundColor: C.surface,
+                   borderBottomWidth: 0.5, borderBottomColor: C.border },
+    tab:         { flex: 1, paddingVertical: 10, alignItems: 'center' },
+    tabActive:   { borderBottomWidth: 2, borderBottomColor: C.accent },
+    tabText:     { fontSize: 13, color: C.muted },
+    tabTextActive: { color: C.accent, fontWeight: '500' },
+    screen:      { flex: 1 },
+    hidden:      { display: 'none' },
+    errorText:   { fontSize: 17, color: C.danger, textAlign: 'center', lineHeight: 26 },
+    errorDetail: { fontSize: 12, color: C.muted, textAlign: 'center', paddingHorizontal: 32 },
+    loadingText: { fontSize: 14, color: C.muted, marginTop: 8 },
+  }), [C]);
+
+  const barStyle = resolvedMode === 'night' ? 'light-content' : 'dark-content';
+
   if (error) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
+        <StatusBar barStyle={barStyle} backgroundColor={C.surface} />
         <Text style={styles.errorText}>Failed to start.{'\n'}Please restart the app.</Text>
         <Text style={styles.errorDetail}>{error}</Text>
       </SafeAreaView>
@@ -55,7 +75,8 @@ function App(): React.JSX.Element {
   if (!ready) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <ActivityIndicator color="#1D6B3E" size="large" />
+        <StatusBar barStyle={barStyle} backgroundColor={C.surface} />
+        <ActivityIndicator color={C.telemetry} size="large" />
         <Text style={styles.loadingText}>Starting up…</Text>
       </SafeAreaView>
     );
@@ -64,7 +85,7 @@ function App(): React.JSX.Element {
   return (
     <BleProvider>
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={C.surface} />
+        <StatusBar barStyle={barStyle} backgroundColor={C.surface} />
         <View style={styles.tabBar}>
           <Pressable style={[styles.tab, activeTab === 'mission' && styles.tabActive]}
             onPress={() => setActiveTab('mission')}>
@@ -90,33 +111,35 @@ function App(): React.JSX.Element {
 }
 
 function MigrationToast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  const { C } = useTheme();
   useEffect(() => {
     const t = setTimeout(onDismiss, 4000);
     return () => clearTimeout(t);
   }, [onDismiss]);
   return (
-    <View style={styles.toast}>
-      <Text style={styles.toastText}>{message}</Text>
+    <View style={{ position: 'absolute', bottom: 24, left: 20, right: 20,
+      backgroundColor: C.telemetry, borderRadius: 8, padding: 12, alignItems: 'center' }}>
+      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500' }}>{message}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  tabBar: { flexDirection: 'row', backgroundColor: C.surface,
-    borderBottomWidth: 0.5, borderBottomColor: '#333' },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: '#1D6B3E' },
-  tabText: { fontSize: 13, color: '#6B7A99' },
-  tabTextActive: { color: '#1D6B3E', fontWeight: '500' },
-  screen:      { flex: 1 },
-  hidden:      { display: 'none' },
-  container:   { flex: 1, backgroundColor: C.surface },
-  center:      { alignItems: 'center', justifyContent: 'center', gap: 12 },
-  errorText:   { fontSize: 17, color: '#B85450', textAlign: 'center', lineHeight: 26 },
-  errorDetail: { fontSize: 12, color: '#8A7A6A', textAlign: 'center', paddingHorizontal: 32 },
-  loadingText: { fontSize: 14, color: '#8A7A6A', marginTop: 8 },
-  toast:       { position: 'absolute', bottom: 24, left: 20, right: 20, backgroundColor: '#1D6B3E', borderRadius: 8, padding: 12, alignItems: 'center' },
-  toastText:   { color: '#fff', fontSize: 13, fontWeight: '500' },
-});
+export default function App(): React.JSX.Element {
+  const [showSplash, setShowSplash] = useState(true);
 
-export default App;
+  if (showSplash) {
+    return (
+      <MWSSplash
+        appName="Mission Control"
+        tagline="Ride farther. Ride smarter."
+        onComplete={() => setShowSplash(false)}
+      />
+    );
+  }
+
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}

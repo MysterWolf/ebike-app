@@ -66,10 +66,14 @@ function buildContext(state: AppState): string {
     ? recentPressure.map(e => `    ${e.date.padEnd(22)}F ${e.front} PSI  R ${e.rear} PSI`).join('\n')
     : '    No readings logged';
 
+  // Fix 4: SPORT is the current UI mode for aggressive riding;
+  // HARD is legacy data. Normalize both to the same label.
   const modeLabels: Record<string, string> = {
     MAX_RANGE: 'MAX RANGE — eco/efficient',
     CRUISER:   'CRUISER — moderate',
-    HARD:      'HARD — aggressive/high-speed',
+    SPORT:     'SPORT — aggressive/high-speed',
+    HARD:      'SPORT — aggressive/high-speed',
+    CUSTOM:    'CUSTOM — user-defined',
   };
   const modeLabel = modeLabels[state.rideMode] ?? state.rideMode;
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { C } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { AppState, DEFAULT_STATE, Message, Tab } from '../state/types';
 import { saveState, loadState } from '../utils/storage';
 import { callAPI, nowTime, WELCOME_MESSAGE } from '../utils/ai';
@@ -18,6 +18,7 @@ import { OpsTab } from '../components/tabs/OpsTab';
 import { ChatPanel } from '../components/chat/ChatPanel';
 
 export function MissionControlScreen() {
+  const { C } = useTheme();
   const [state, setStateRaw] = useState<AppState>(DEFAULT_STATE);
   const [activeTab, setActiveTab] = useState<Tab>('ride');
   const [isTyping, setIsTyping] = useState(false);
@@ -27,11 +28,17 @@ export function MissionControlScreen() {
 
   const { setRideMode } = useBleContext();
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    loading:   { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.background },
+    content:   { flex: 1 },
+  }), [C]);
+
   useEffect(() => {
     loadState().then(saved => {
       if (saved) {
         const merged: AppState = { ...DEFAULT_STATE, ...saved };
-        setRideMode(merged.rideMode); // sync initial rideMode to auto-ride tracker
+        setRideMode(merged.rideMode);
         setStateRaw(merged);
         const sysMsg: Message = {
           role: 'system',
@@ -204,9 +211,3 @@ export function MissionControlScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.background },
-  content: { flex: 1 },
-});

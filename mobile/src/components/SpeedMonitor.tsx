@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Vibration } from 'react-native';
 import { SPEED_ALERT_THRESHOLD_MPH, isOverSpeedLimit } from '../utils/rideCalculations';
+import { useTheme } from '../theme/ThemeContext';
 
 interface Props {
   speed: number;
@@ -8,12 +9,26 @@ interface Props {
 }
 
 export function SpeedMonitor({ speed, isRiding }: Props) {
+  const { instrC: C } = useTheme();
   const over = isOverSpeedLimit(speed);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const prevOverRef = useRef(false);
   const loopRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  // Vibrate once on threshold crossing
+  const styles = useMemo(() => StyleSheet.create({
+    container: {
+      width: 180, height: 180, borderRadius: 90,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: C.surface, borderWidth: 3, borderColor: C.sage,
+    },
+    alertContainer: { borderColor: C.danger, backgroundColor: C.bg },
+    speed:      { fontSize: 52, fontWeight: 'bold', color: C.sage },
+    alertSpeed: { color: C.danger },
+    unit:       { fontSize: 16, color: C.sage, marginTop: -4 },
+    alertUnit:  { color: C.danger },
+    alertText:  { fontSize: 11, color: C.danger, textAlign: 'center', marginTop: 4, fontWeight: '600' },
+  }), [C]);
+
   useEffect(() => {
     if (over && !prevOverRef.current) {
       Vibration.vibrate([0, 300, 100, 300]);
@@ -21,7 +36,6 @@ export function SpeedMonitor({ speed, isRiding }: Props) {
     prevOverRef.current = over;
   }, [over]);
 
-  // Pulse animation while over limit
   useEffect(() => {
     if (over) {
       loopRef.current = Animated.loop(
@@ -59,43 +73,3 @@ export function SpeedMonitor({ speed, isRiding }: Props) {
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2A2720',
-    borderWidth: 3,
-    borderColor: '#2D7A4F',
-  },
-  alertContainer: {
-    borderColor: '#C0392B',
-    backgroundColor: '#2D1510',
-  },
-  speed: {
-    fontSize: 52,
-    fontWeight: 'bold',
-    color: '#2D7A4F',
-  },
-  alertSpeed: {
-    color: '#C0392B',
-  },
-  unit: {
-    fontSize: 16,
-    color: '#2D7A4F',
-    marginTop: -4,
-  },
-  alertUnit: {
-    color: '#C0392B',
-  },
-  alertText: {
-    fontSize: 11,
-    color: '#C0392B',
-    textAlign: 'center',
-    marginTop: 4,
-    fontWeight: '600',
-  },
-});

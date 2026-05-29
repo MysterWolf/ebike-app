@@ -16,24 +16,28 @@ export function lastRideDraw(state: AppState): number | null {
   return lastRide.drawRate;
 }
 
-const BASELINE_WEIGHT = 20; // virtual miles anchoring the mode baseline into the blend
+// Fix 3: fixed neutral anchor — mode switches no longer shift the blended average.
+// 1.75 is the CRUISER midpoint; chosen as a stable, mode-independent prior.
+const BASELINE_WEIGHT  = 20;   // virtual miles
+const NEUTRAL_BASELINE = 1.75; // fixed anchor regardless of current rideMode
 
 export function overallAvg(state: AppState): number {
-  const baseline = modeBaseline(state.rideMode);
   const rides = state.rideLog ?? [];
   const totalDist   = rides.reduce((sum, r) => sum + r.distance, 0);
   const weightedSum = rides.reduce((sum, r) => sum + r.drawRate * r.distance, 0);
-  return (weightedSum + baseline * BASELINE_WEIGHT) / (totalDist + BASELINE_WEIGHT);
+  return (weightedSum + NEUTRAL_BASELINE * BASELINE_WEIGHT) / (totalDist + BASELINE_WEIGHT);
 }
 
-export function estRange(state: AppState): number {
+// Fix 1: optional batteryPct param — callers pass live BLE value when connected
+// so the estimate reflects real-time state, not the last saved state.battery.
+export function estRange(state: AppState, batteryPct?: number): number {
   const avg = overallAvg(state);
   if (avg <= 0) return 0;
-  return state.battery / avg;
+  return (batteryPct ?? state.battery) / avg;
 }
 
-export function chargeTime(state: AppState): number {
-  const needed = Math.max(0, state.chargeTarget - state.battery);
+export function chargeTime(state: AppState, batteryPct?: number): number {
+  const needed = Math.max(0, state.chargeTarget - (batteryPct ?? state.battery));
   if (state.chargerAmps <= 0) return 0;
   return (state.capacityAh * needed / 100 / state.chargerAmps) * 1.15;
 }

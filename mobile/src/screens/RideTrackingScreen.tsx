@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,10 @@ import {
   calculateAverageSpeed,
 } from '../utils/rideCalculations';
 import { startRideSession, endRideSession } from '../services/rideService';
+import { useTheme } from '../theme/ThemeContext';
 
 export function RideTrackingScreen() {
+  const { instrC: C } = useTheme();
   const [isRiding, setIsRiding] = useState(false);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [topSpeed, setTopSpeed] = useState(0);
@@ -35,6 +37,24 @@ export function RideTrackingScreen() {
   const lastPositionRef = useRef<{ lat: number; lon: number } | null>(null);
   const distanceRef = useRef(0);
   const topSpeedRef = useRef(0);
+
+  const styles = useMemo(() => StyleSheet.create({
+    screen:  { flex: 1, backgroundColor: C.bg },
+    content: { padding: 20, paddingTop: 50, alignItems: 'center', gap: 24 },
+    title:   { fontSize: 26, fontWeight: 'bold', color: C.text, letterSpacing: 1 },
+    speedSection: { alignItems: 'center', justifyContent: 'center', height: 200 },
+    idleCircle: {
+      width: 180, height: 180, borderRadius: 90,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: C.surface, borderWidth: 3, borderColor: C.border,
+    },
+    idleText: { color: C.muted, fontSize: 20, fontWeight: '600', letterSpacing: 2 },
+    statsSection: { width: '100%' },
+    button: { width: '80%', paddingVertical: 18, borderRadius: 50, alignItems: 'center' },
+    startButton: { backgroundColor: C.sage },
+    stopButton:  { backgroundColor: C.danger },
+    buttonText:  { fontSize: 20, fontWeight: 'bold', color: '#FFFFFF', letterSpacing: 0.5 },
+  }), [C]);
 
   const requestLocationPermission = async (): Promise<boolean> => {
     if (Platform.OS === 'android') {
@@ -53,7 +73,6 @@ export function RideTrackingScreen() {
       return;
     }
 
-    // Reset all tracking state
     speedReadingsRef.current = [];
     lastPositionRef.current = null;
     distanceRef.current = 0;
@@ -184,64 +203,3 @@ export function RideTrackingScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#1C1A15',
-  },
-  content: {
-    padding: 20,
-    paddingTop: 50,
-    alignItems: 'center',
-    gap: 24,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#F0EDE6',
-    letterSpacing: 1,
-  },
-  speedSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 200,
-  },
-  idleCircle: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2A2720',
-    borderWidth: 3,
-    borderColor: '#3D3A32',
-  },
-  idleText: {
-    color: '#8A8780',
-    fontSize: 20,
-    fontWeight: '600',
-    letterSpacing: 2,
-  },
-  statsSection: {
-    width: '100%',
-  },
-  button: {
-    width: '80%',
-    paddingVertical: 18,
-    borderRadius: 50,
-    alignItems: 'center',
-  },
-  startButton: {
-    backgroundColor: '#2D7A4F',
-  },
-  stopButton: {
-    backgroundColor: '#C0392B',
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    letterSpacing: 0.5,
-  },
-});

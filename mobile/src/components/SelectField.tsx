@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   StyleSheet,
   SafeAreaView,
 } from 'react-native';
-import { C, MONO } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { MONO } from '../theme/colors';
 
 interface Props {
   label: string;
@@ -20,10 +21,58 @@ interface Props {
 }
 
 export function SelectField({ label, value, options, onChange, onAddCustom }: Props) {
+  const { C } = useTheme();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [newItem, setNewItem] = useState('');
   const inputRef = useRef<TextInput>(null);
+
+  const styles = useMemo(() => StyleSheet.create({
+    field: {
+      backgroundColor: C.white,
+      borderWidth: 1, borderColor: C.border, borderRadius: 6,
+      paddingHorizontal: 10, paddingVertical: 8,
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    },
+    value:   { fontFamily: MONO, fontSize: 12, color: C.ink, flex: 1 },
+    chevron: { fontSize: 18, color: C.muted, marginLeft: 4 },
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+    sheet: {
+      backgroundColor: C.white,
+      borderTopLeftRadius: 14, borderTopRightRadius: 14,
+      maxHeight: '60%',
+      shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.08, shadowRadius: 10, elevation: 8,
+    },
+    sheetHeader: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 16, paddingVertical: 14,
+      borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    sheetLabel: { fontFamily: MONO, fontSize: 11, letterSpacing: 1, color: C.inkMid, textTransform: 'uppercase' },
+    done:         { fontSize: 15, color: C.accent, fontWeight: '600' },
+    doneDisabled: { opacity: 0.35 },
+    cancel:       { fontSize: 15, color: C.inkMid },
+    option: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 16, paddingVertical: 14,
+      borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    optionActive:     { backgroundColor: C.accentTint },
+    optionText:       { fontSize: 15, color: C.ink },
+    optionTextActive: { color: C.accent, fontWeight: '600' },
+    check:   { fontSize: 15, color: C.accent, fontWeight: '700' },
+    addRow:  { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+    addRowText: { fontSize: 15, color: C.accent, fontWeight: '500' },
+    addForm: { padding: 16, gap: 10 },
+    addInput: {
+      backgroundColor: C.background,
+      borderWidth: 1, borderColor: C.accent, borderRadius: 8,
+      paddingHorizontal: 12, paddingVertical: 10,
+      fontSize: 15, color: C.ink,
+    },
+    addHint: { fontFamily: MONO, fontSize: 10, color: C.muted, letterSpacing: 0.3 },
+  }), [C]);
 
   function close() {
     setOpen(false);
@@ -67,11 +116,8 @@ export function SelectField({ label, value, options, onChange, onAddCustom }: Pr
                     <Text style={styles.cancel}>Cancel</Text>
                   </TouchableOpacity>
                   <Text style={styles.sheetLabel}>ADD ITEM</Text>
-                  <TouchableOpacity
-                    onPress={commitAdd}
-                    disabled={!newItem.trim()}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
+                  <TouchableOpacity onPress={commitAdd} disabled={!newItem.trim()}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Text style={[styles.done, !newItem.trim() && styles.doneDisabled]}>Add</Text>
                   </TouchableOpacity>
                 </>
@@ -130,127 +176,3 @@ export function SelectField({ label, value, options, onChange, onAddCustom }: Pr
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  field: {
-    backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  value: {
-    fontFamily: MONO,
-    fontSize: 12,
-    color: C.ink,
-    flex: 1,
-  },
-  chevron: {
-    fontSize: 18,
-    color: C.muted,
-    marginLeft: 4,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  sheet: {
-    backgroundColor: C.white,
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    maxHeight: '60%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  sheetLabel: {
-    fontFamily: MONO,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: C.inkMid,
-    textTransform: 'uppercase',
-  },
-  done: {
-    fontSize: 15,
-    color: C.accent,
-    fontWeight: '600',
-  },
-  doneDisabled: {
-    opacity: 0.35,
-  },
-  cancel: {
-    fontSize: 15,
-    color: C.inkMid,
-  },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  optionActive: {
-    backgroundColor: 'rgba(196,169,98,0.15)',
-  },
-  optionText: {
-    fontSize: 15,
-    color: C.ink,
-  },
-  optionTextActive: {
-    color: C.accent,
-    fontWeight: '600',
-  },
-  check: {
-    fontSize: 15,
-    color: C.accent,
-    fontWeight: '700',
-  },
-  addRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  addRowText: {
-    fontSize: 15,
-    color: C.accent,
-    fontWeight: '500',
-  },
-  addForm: {
-    padding: 16,
-    gap: 10,
-  },
-  addInput: {
-    backgroundColor: C.background,
-    borderWidth: 1,
-    borderColor: C.accent,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: C.ink,
-  },
-  addHint: {
-    fontFamily: MONO,
-    fontSize: 10,
-    color: C.muted,
-    letterSpacing: 0.3,
-  },
-});

@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { C, MONO } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { MONO } from '../theme/colors';
 import { Tab } from '../state/types';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'ride', label: 'RIDE' },
   { id: 'bike', label: 'BIKE' },
   { id: 'gear', label: 'GEAR' },
-  { id: 'ops', label: 'OPS' },
+  { id: 'ops',  label: 'OPS'  },
   { id: 'chat', label: 'CHAT' },
 ];
 
@@ -17,6 +18,32 @@ interface Props {
 }
 
 export function TabBar({ active, onSelect }: Props) {
+  const { C } = useTheme();
+
+  const styles = useMemo(() => StyleSheet.create({
+    bar: {
+      flexDirection: 'row',
+      backgroundColor: C.white,
+      borderBottomWidth: 1,
+      borderBottomColor: C.border,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    tabActive: { borderBottomColor: C.accent },
+    label: {
+      fontFamily: MONO,
+      fontSize: 10,
+      letterSpacing: 1,
+      color: C.muted,
+    },
+    labelActive: { color: C.accent, fontWeight: '700' },
+  }), [C]);
+
   return (
     <View style={styles.bar}>
       {TABS.map(tab => {
@@ -37,32 +64,3 @@ export function TabBar({ active, onSelect }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    backgroundColor: C.white,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: C.accent,
-  },
-  label: {
-    fontFamily: MONO,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: C.muted,
-  },
-  labelActive: {
-    color: C.accent,
-    fontWeight: '700',
-  },
-});
