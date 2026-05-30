@@ -102,3 +102,22 @@ Theme persists via AsyncStorage. ThemeContext used throughout. Brand mark (MWS g
 - Claude API chat panel wired (6 presets, full telemetry context) — blocked on account
 - Ride logging, edit, delete, sort, CSV/JSON export working
 - Auto-logging moved to future premium brand-specific add-on
+
+## Available Skills
+Skills live at github.com/MysterWolf/skills. Pull that repo and read README.md
+to see all available skills before starting work.
+
+Relevant skills for this repo:
+- edit-component — safe editing protocol, context first, invariants respected
+- update-context — update this CLAUDE.md after session, commit and push
+- audit-repo — read-only snapshot of repo state
+- spinup-app — reference for app architecture patterns
+
+## Updated Claude Code Session Starter
+"I'm working on Mission Control — an e-bike companion app in React Native 0.81.5
+with Expo SDK 53 bare workflow, Android only at github.com/MysterWolf/ebike-app.
+First pull github.com/MysterWolf/skills and read README.md so you know what skills
+are available. Then pull this repo and read CLAUDE.md in full. Respect ALL invariants
+listed before making any changes. The app complements the Movcan companion app —
+it does not replace it. Confirm you understand the structure, invariants, and
+available skills before I give you the next task."
