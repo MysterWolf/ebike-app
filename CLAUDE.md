@@ -1,13 +1,13 @@
 # Mission Control — Claude Context
-**Last updated:** May 2026
-**Version:** v0.4.3 (build 33)
+**Last updated:** June 2026
+**Version:** v0.4.5 (build 35)
 
 ## What This Is
 An e-bike companion app for Android. Not a telemetry mirror — a logging, analysis, and AI advisory layer that works alongside any e-bike's companion app. Target users: Movcan V70 owners as initial beta community, expanding to all e-bike riders. Built in React Native 0.81.5, Expo SDK 53 bare workflow, Android only.
 
 ## Current Status
 - **Live:** In development. Not yet on Play Store.
-- **Version:** v0.4.3 (build 33)
+- **Version:** v0.4.5 (build 35)
 - **Platform:** Android only
 - **Release target:** Mid-June or July 2026
 - **AI chat:** Wired to Claude API — blocked pending Anthropic account resolution
@@ -90,6 +90,15 @@ Theme persists via AsyncStorage. ThemeContext used throughout. Brand mark (MWS g
 "I'm working on Mission Control — an e-bike companion app in React Native 0.81.5 with Expo SDK 53 bare workflow, Android only. Pull the repo and read CLAUDE.md before making any changes. Respect all invariants. The app complements the Movcan companion app — it does not replace it. Confirm you understand the structure and invariants before I give you the next task."
 
 ## Changelog
+### v0.4.5 (build 35) — June 2026
+- Fix: ride history sort broken — saveRideLog re-derived logged_at from display string on every save; Hermes rejected the format and fell back to now(), stamping all rides with today's date
+- Fix: loadRideLog now parses logged_at from date_str ("May 15, 2:30 PM" → ISO) as the recovery path; corrupted DB rows self-heal on first launch
+- Feat: MISSION HISTORY now grouped into collapsible calendar-week sections (Mon–Sun); month dividers between weeks; most recent week open by default
+- Fix: edit/delete modal now keys on logged_at instead of date string
+
+### v0.4.4 (build 34) — June 2026
+- Sort and grouping work (see v0.4.5 for the underlying timestamp fix that made them fully correct)
+
 ### v0.4.3 (build 33) — May 2026
 - ScreenModule.kt: native Android module owns FLAG_KEEP_SCREEN_ON + enterPip() stub
 - Screen stays on for entire app session (activates in AppContent, cleans up on unmount)
