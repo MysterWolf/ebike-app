@@ -22,6 +22,31 @@ interface Props {
   onSysMsg: (content: string) => void;
 }
 
+// ── Week grouping helpers ─────────────────────────────────────────────────────
+
+function weekMonday(isoStr: string): Date {
+  const d = new Date(isoStr);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
+  const mon = new Date(d);
+  mon.setDate(d.getDate() + diff);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+function weekRangeLabel(monday: Date): string {
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${fmt(monday)} – ${fmt(sunday)}`;
+}
+
+function monthHeading(monday: Date): string {
+  return monday.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function RideTab({ state, update, onSysMsg }: Props) {
   const { C } = useTheme();
   const scrollRef = useRef<ScrollView>(null);
@@ -32,11 +57,14 @@ export function RideTab({ state, update, onSysMsg }: Props) {
   const [rideLogError, setRideLogError] = useState<'dist' | 'bat' | null>(null);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editRideDate, setEditRideDate] = useState('');
+  const [editLoggedAt, setEditLoggedAt] = useState('');   // unique key for edit/delete
+  const [editRideDate, setEditRideDate] = useState('');   // display only
   const [editDist, setEditDist] = useState('');
   const [editBat, setEditBat] = useState('');
   const [editMode, setEditMode] = useState('');
   const [editNotes, setEditNotes] = useState('');
+
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set());
 
   const { status, telemetry } = useBleContext();
   const liveBat = status === 'connected' && telemetry?.battery_pct != null
@@ -105,6 +133,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     logModePillTextActive: { color: '#FFFFFF' },
     logRideBtn:     { backgroundColor: C.accent, borderRadius: 6, paddingVertical: 10, alignItems: 'center', marginTop: 2 },
     logRideBtnText: { fontFamily: MONO, fontSize: 12, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1.5 },
+    // ── History table ────────────────────────────────────────────────────────
     histHeader: {
       flexDirection: 'row', paddingBottom: 5,
       borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 4,
@@ -120,10 +149,37 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     histValue: { fontSize: 11, color: C.ink },
     histDrawValue: { fontSize: 11, color: C.accent, fontWeight: '700' },
     histUnit:  { fontSize: 9, color: C.inkMid, fontWeight: '400' },
+    // ── Week / month grouping ────────────────────────────────────────────────
+    monthRow: {
+      flexDirection: 'row', alignItems: 'center',
+      marginTop: 10, marginBottom: 4,
+    },
+    monthText: {
+      fontFamily: MONO, fontSize: 8, letterSpacing: 2,
+      color: C.accent, marginRight: 8,
+    },
+    monthLine: { flex: 1, height: 1, backgroundColor: C.border },
+    weekHeader: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingVertical: 9, paddingHorizontal: 10,
+      backgroundColor: C.white, borderWidth: 1, borderColor: C.border,
+      borderRadius: 6, marginBottom: 4,
+    },
+    weekHeaderExpanded: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 },
+    weekLabelText: { fontFamily: MONO, fontSize: 11, color: C.ink, fontWeight: '600', flex: 1 },
+    weekMeta: { fontFamily: MONO, fontSize: 9, color: C.muted, marginTop: 2 },
+    weekChevron: { fontFamily: MONO, fontSize: 13, color: C.inkMid, marginLeft: 8 },
+    weekBody: {
+      backgroundColor: C.white, borderWidth: 1, borderTopWidth: 0, borderColor: C.border,
+      borderBottomLeftRadius: 6, borderBottomRightRadius: 6,
+      paddingHorizontal: 10, paddingBottom: 6, marginBottom: 10,
+    },
+    // ── Mode stats ───────────────────────────────────────────────────────────
     modeStatRow:   { flexDirection: 'row', alignItems: 'baseline', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: C.border },
     modeStatLabel: { fontFamily: MONO, fontSize: 10, color: C.inkMid, letterSpacing: 0.5, width: 80 },
     modeStatValue: { fontFamily: MONO, fontSize: 13, color: C.accent, fontWeight: '700', flex: 1 },
     modeStatCount: { fontFamily: MONO, fontSize: 9, color: C.muted },
+    // ── Edit modal ───────────────────────────────────────────────────────────
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'center', padding: 16 },
     modalCard: {
       backgroundColor: C.white, borderWidth: 1, borderColor: C.border,
@@ -182,9 +238,9 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
   }
 
-  function openEditModal(origIdx: number) {
-    const ride = state.rideLog[origIdx];
-    if (!ride) return;
+  function openEditModal(ride: RideLogEntry) {
+    const key = ride.logged_at ?? ride.date;
+    setEditLoggedAt(key);
     setEditRideDate(ride.date);
     setEditDist(String(ride.distance));
     setEditBat(String(ride.batteryUsed));
@@ -199,7 +255,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     if (isNaN(dist) || dist <= 0 || isNaN(bat) || bat < 0 || bat > 100) return;
     const drawRate = dist > 0 ? bat / dist : 0;
     const newLog = state.rideLog.map(r =>
-      r.date === editRideDate
+      (r.logged_at ?? r.date) === editLoggedAt
         ? { ...r, distance: Math.round(dist * 10) / 10, batteryUsed: Math.round(bat * 10) / 10,
             drawRate: Math.round(drawRate * 100) / 100, rideMode: editMode,
             notes: editNotes.trim() || undefined }
@@ -215,8 +271,8 @@ export function RideTab({ state, update, onSysMsg }: Props) {
       {
         text: 'Delete', style: 'destructive',
         onPress: () => {
-          const removed = state.rideLog.find(r => r.date === editRideDate);
-          const newLog = state.rideLog.filter(r => r.date !== editRideDate);
+          const removed = state.rideLog.find(r => (r.logged_at ?? r.date) === editLoggedAt);
+          const newLog  = state.rideLog.filter(r => (r.logged_at ?? r.date) !== editLoggedAt);
           const newOdometer = removed ? Math.max(0, Math.round((state.odometer - removed.distance) * 10) / 10) : state.odometer;
           const newBattery  = removed ? Math.min(100, Math.round((state.battery + removed.batteryUsed) * 10) / 10) : state.battery;
           update({ rideLog: newLog, odometer: newOdometer, battery: newBattery });
@@ -226,13 +282,88 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     ]);
   }
 
-  const displayRides = (state.rideLog ?? [])
-    .map((ride, origIdx) => ({ ride, origIdx }))
-    .sort((a, b) => {
-      const ta = a.ride.logged_at ?? a.ride.date;
-      const tb = b.ride.logged_at ?? b.ride.date;
-      return tb > ta ? 1 : -1;
+  // ── Sort newest-first, then group into calendar weeks ─────────────────────
+
+  const displayRides = useMemo(() =>
+    (state.rideLog ?? [])
+      .map((ride, origIdx) => ({ ride, origIdx }))
+      .sort((a, b) => {
+        const ta = a.ride.logged_at ?? a.ride.date;
+        const tb = b.ride.logged_at ?? b.ride.date;
+        return tb > ta ? 1 : tb < ta ? -1 : 0;
+      }),
+    [state.rideLog],
+  );
+
+  type WeekGroup = {
+    key: string;
+    label: string;
+    month: string;
+    monday: Date;
+    rides: typeof displayRides;
+  };
+
+  const weekGroups = useMemo((): WeekGroup[] => {
+    const map = new Map<string, WeekGroup>();
+    for (const item of displayRides) {
+      const iso = item.ride.logged_at;
+      let key: string, label: string, month: string, monday: Date;
+      if (iso) {
+        monday = weekMonday(iso);
+        key    = monday.toISOString().slice(0, 10);
+        label  = weekRangeLabel(monday);
+        month  = monthHeading(monday);
+      } else {
+        monday = new Date(0);
+        key    = 'unknown';
+        label  = 'Unknown date';
+        month  = '';
+      }
+      if (!map.has(key)) map.set(key, { key, label, month, monday, rides: [] });
+      map.get(key)!.rides.push(item);
+    }
+    return Array.from(map.values()); // insertion order = newest-first (displayRides is pre-sorted)
+  }, [displayRides]);
+
+  function toggleWeek(key: string) {
+    setExpandedWeeks(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
     });
+  }
+
+  function isWeekExpanded(key: string, groupIndex: number) {
+    // Most recent week open by default until user toggles anything
+    if (expandedWeeks.size === 0) return groupIndex === 0;
+    return expandedWeeks.has(key);
+  }
+
+  // ── Mode stats (distance-weighted draw rate per mode) ─────────────────────
+
+  const modeStats = useMemo(() => {
+    const MODE_LABELS: Record<string, string> = { MAX_RANGE: 'MAX RANGE', CRUISER: 'CRUISER', SPORT: 'SPORT', HARD: 'SPORT', CUSTOM: 'CUSTOM' };
+    const ORDER = ['MAX_RANGE', 'CRUISER', 'SPORT', 'CUSTOM'];
+    const buckets: Record<string, { drawRate: number; distance: number }[]> = {};
+    for (const { ride } of displayRides) {
+      const key = ride.rideMode ?? 'UNKNOWN';
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push({ drawRate: ride.drawRate, distance: ride.distance });
+    }
+    if (buckets['HARD']) {
+      buckets['SPORT'] = [...(buckets['SPORT'] ?? []), ...buckets['HARD']];
+      delete buckets['HARD'];
+    }
+    const modes = [...ORDER.filter(m => buckets[m]), ...Object.keys(buckets).filter(k => !ORDER.includes(k) && k !== 'UNKNOWN')];
+    return modes.map(mode => {
+      const rides = buckets[mode];
+      const totalDist = rides.reduce((s, r) => s + r.distance, 0);
+      const avg = totalDist > 0
+        ? rides.reduce((s, r) => s + r.drawRate * r.distance, 0) / totalDist
+        : rides.reduce((s, r) => s + r.drawRate, 0) / rides.length;
+      return { mode, label: MODE_LABELS[mode] ?? mode, avg, count: rides.length };
+    });
+  }, [displayRides]);
 
   return (
     <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content}>
@@ -306,6 +437,8 @@ export function RideTab({ state, update, onSysMsg }: Props) {
 
       <View style={styles.divider} />
       <CollapsibleSection title="MISSION LOG" defaultOpen={true}>
+
+        {/* ── Log a new ride ───────────────────────────────────────────────── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>LOG MISSION</Text>
           <View style={styles.inlineRow}>
@@ -338,68 +471,88 @@ export function RideTab({ state, update, onSysMsg }: Props) {
           </TouchableOpacity>
         </View>
 
-        {displayRides.length > 0 && (() => {
-          const MODE_LABELS: Record<string, string> = { MAX_RANGE: 'MAX RANGE', CRUISER: 'CRUISER', SPORT: 'SPORT', HARD: 'SPORT', CUSTOM: 'CUSTOM' };
-          const ORDER = ['MAX_RANGE', 'CRUISER', 'SPORT', 'HARD', 'CUSTOM'];
-          // Fix 2: buckets carry drawRate + distance for weighted mean calculation.
-          const buckets: Record<string, { drawRate: number; distance: number }[]> = {};
-          for (const { ride } of displayRides) {
-            const key = ride.rideMode ?? 'UNKNOWN';
-            if (!buckets[key]) buckets[key] = [];
-            buckets[key].push({ drawRate: ride.drawRate, distance: ride.distance });
-          }
-          if (buckets['HARD']) { buckets['SPORT'] = [...(buckets['SPORT'] ?? []), ...buckets['HARD']]; delete buckets['HARD']; }
-          const displayModes = [...ORDER.filter(m => m !== 'HARD' && buckets[m]), ...Object.keys(buckets).filter(k => !ORDER.includes(k))];
-
-          return (
-            <>
-              {displayModes.length > 0 && (
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>DRAW RATE BY MODE</Text>
-                  {displayModes.map(mode => {
-                    const rides = buckets[mode];
-                    const totalDist = rides.reduce((s, r) => s + r.distance, 0);
-                    // Distance-weighted mean: longer rides influence the average more.
-                    const avg = totalDist > 0
-                      ? rides.reduce((s, r) => s + r.drawRate * r.distance, 0) / totalDist
-                      : rides.reduce((s, r) => s + r.drawRate, 0) / rides.length;
-                    return (
-                      <View key={mode} style={styles.modeStatRow}>
-                        <Text style={styles.modeStatLabel}>{MODE_LABELS[mode] ?? mode}</Text>
-                        <Text style={styles.modeStatValue}>{avg.toFixed(2)}<Text style={styles.histUnit}> %/mi</Text></Text>
-                        <Text style={styles.modeStatCount}>({rides.length} ride{rides.length !== 1 ? 's' : ''})</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
+        {displayRides.length > 0 && (
+          <>
+            {/* ── Draw rate by mode ──────────────────────────────────────── */}
+            {modeStats.length > 0 && (
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>MISSION HISTORY ({state.rideLog.length} total)</Text>
-                <View style={styles.histHeader}>
-                  <Text style={[styles.histCell, styles.histDate]}>DATE</Text>
-                  <Text style={[styles.histCell, styles.histNum]}>DIST</Text>
-                  <Text style={[styles.histCell, styles.histNum]}>BAT</Text>
-                  <Text style={[styles.histCell, styles.histDraw]}>DRAW</Text>
-                </View>
-                {displayRides.map(({ ride, origIdx }, i) => (
-                  <View key={origIdx} style={[styles.histEntry, i < displayRides.length - 1 && styles.histEntryBorder]}>
-                    <View style={styles.histRow}>
-                      <Text style={[styles.histCell, styles.histDate, styles.histValue]}>{ride.date}</Text>
-                      <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.distance.toFixed(1)}<Text style={styles.histUnit}> mi</Text></Text>
-                      <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.batteryUsed}<Text style={styles.histUnit}>%</Text></Text>
-                      <Text style={[styles.histCell, styles.histDraw, styles.histDrawValue]}>{ride.drawRate.toFixed(2)}<Text style={styles.histUnit}> %/mi</Text></Text>
-                    </View>
-                    <TouchableOpacity onPress={() => openEditModal(origIdx)} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
-                      <Text style={styles.modeBadge}>
-                        {ride.rideMode ? ride.rideMode.replace('_', ' ') : '— mode'}{ride.notes ? '  · ' + ride.notes : ''} ›
-                      </Text>
-                    </TouchableOpacity>
+                <Text style={styles.cardTitle}>DRAW RATE BY MODE</Text>
+                {modeStats.map(({ mode, label, avg, count }) => (
+                  <View key={mode} style={styles.modeStatRow}>
+                    <Text style={styles.modeStatLabel}>{label}</Text>
+                    <Text style={styles.modeStatValue}>{avg.toFixed(2)}<Text style={styles.histUnit}> %/mi</Text></Text>
+                    <Text style={styles.modeStatCount}>({count} ride{count !== 1 ? 's' : ''})</Text>
                   </View>
                 ))}
               </View>
-            </>
-          );
-        })()}
+            )}
+
+            {/* ── Mission history grouped by week ──────────────────────── */}
+            <Text style={[styles.cardTitle, { marginTop: 4, marginBottom: 8 }]}>
+              MISSION HISTORY ({state.rideLog.length} total)
+            </Text>
+
+            {weekGroups.map((group, gi) => {
+              const expanded = isWeekExpanded(group.key, gi);
+              const totalDist = group.rides.reduce((s, { ride }) => s + ride.distance, 0);
+              const prevMonth = gi > 0 ? weekGroups[gi - 1].month : null;
+              const showMonthDivider = group.month && group.month !== prevMonth;
+
+              return (
+                <React.Fragment key={group.key}>
+                  {showMonthDivider && (
+                    <View style={styles.monthRow}>
+                      <Text style={styles.monthText}>{group.month}</Text>
+                      <View style={styles.monthLine} />
+                    </View>
+                  )}
+
+                  {/* Week header row */}
+                  <TouchableOpacity
+                    style={[styles.weekHeader, expanded && styles.weekHeaderExpanded]}
+                    onPress={() => toggleWeek(group.key)}
+                    activeOpacity={0.7}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.weekLabelText}>{group.label}</Text>
+                      <Text style={styles.weekMeta}>
+                        {group.rides.length} ride{group.rides.length !== 1 ? 's' : ''} · {totalDist.toFixed(1)} mi
+                      </Text>
+                    </View>
+                    <Text style={styles.weekChevron}>{expanded ? '▾' : '▸'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Ride rows within this week */}
+                  {expanded && (
+                    <View style={styles.weekBody}>
+                      <View style={styles.histHeader}>
+                        <Text style={[styles.histCell, styles.histDate]}>DATE</Text>
+                        <Text style={[styles.histCell, styles.histNum]}>DIST</Text>
+                        <Text style={[styles.histCell, styles.histNum]}>BAT</Text>
+                        <Text style={[styles.histCell, styles.histDraw]}>DRAW</Text>
+                      </View>
+                      {group.rides.map(({ ride }, ri) => (
+                        <View key={ride.logged_at ?? ride.date}
+                          style={[styles.histEntry, ri < group.rides.length - 1 && styles.histEntryBorder]}>
+                          <View style={styles.histRow}>
+                            <Text style={[styles.histCell, styles.histDate, styles.histValue]}>{ride.date}</Text>
+                            <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.distance.toFixed(1)}<Text style={styles.histUnit}> mi</Text></Text>
+                            <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.batteryUsed}<Text style={styles.histUnit}>%</Text></Text>
+                            <Text style={[styles.histCell, styles.histDraw, styles.histDrawValue]}>{ride.drawRate.toFixed(2)}<Text style={styles.histUnit}> %/mi</Text></Text>
+                          </View>
+                          <TouchableOpacity onPress={() => openEditModal(ride)} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+                            <Text style={styles.modeBadge}>
+                              {ride.rideMode ? ride.rideMode.replace('_', ' ') : '— mode'}{ride.notes ? '  · ' + ride.notes : ''} ›
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </>
+        )}
       </CollapsibleSection>
 
       <View style={styles.divider} />

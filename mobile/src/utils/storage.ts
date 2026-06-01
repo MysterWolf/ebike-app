@@ -169,11 +169,13 @@ async function loadRideLog(db: SQLiteDatabase): Promise<RideLogEntry[]> {
     for (let i = 0; i < res.rows.length; i++) {
       const r = res.rows.item(i);
       arr.push({
-        distance: r.distance_mi,
+        distance:    r.distance_mi,
         batteryUsed: r.battery_used_pct,
-        drawRate: r.draw_rate,
-        date: r.date_str ?? r.logged_at,
-        rideMode: r.ride_mode ?? undefined,
+        drawRate:    r.draw_rate,
+        date:        r.date_str ?? r.logged_at,
+        logged_at:   r.logged_at ?? undefined,
+        rideMode:    r.ride_mode ?? undefined,
+        notes:       r.notes ?? undefined,
       });
     }
     return arr;
