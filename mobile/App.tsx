@@ -10,6 +10,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { initDb } from './src/db/database';
 import { migrateJsonToSqlite } from './src/db/migrate_json';
 import { MWSSplash } from './src/components/shared/MWSSplash';
+import { activateKeepAwake, deactivateKeepAwake } from './src/utils/ScreenModule';
 
 function AppContent(): React.JSX.Element {
   const { C, resolvedMode } = useTheme();
@@ -19,6 +20,11 @@ function AppContent(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<'mission' | 'telemetry'>('mission');
 
   const dismissMigMsg = useCallback(() => setMigMsg(null), []);
+
+  useEffect(() => {
+    activateKeepAwake();
+    return () => deactivateKeepAwake();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
