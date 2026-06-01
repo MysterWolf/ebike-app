@@ -18,6 +18,23 @@ import type { SQLiteDatabase } from 'react-native-sqlite-storage';
 // Sidecar file for fields not in SQLite
 const SIDECAR_FILE = `${RNFS.DocumentDirectoryPath}/ebike-config.json`;
 
+// Parse a display date string like "May 15, 2:30 PM" into an ISO timestamp.
+// Used to recover correct logged_at values from date_str when the stored
+// logged_at was clobbered by a bug that stamped every ride with now().
+function parseRideDate(dateStr: string | null | undefined): string | undefined {
+  if (!dateStr) return undefined;
+  try {
+    const parts = dateStr.replace(',', '').trim().split(/\s+/);
+    // ["May", "15", "2:30", "PM"]
+    if (parts.length < 3) return undefined;
+    const yr = new Date().getFullYear();
+    const attempt = `${parts[0]} ${parts[1]} ${yr} ${parts[2]}${parts[3] ? ' ' + parts[3] : ''}`;
+    const d = new Date(attempt);
+    if (isNaN(d.getTime())) return undefined;
+    return d.toISOString();
+  } catch { return undefined; }
+}
+
 // ============================================================
 // SIDECAR — apiKey, customGearOptions, checklistState
 // ============================================================
@@ -173,7 +190,7 @@ async function loadRideLog(db: SQLiteDatabase): Promise<RideLogEntry[]> {
         batteryUsed: r.battery_used_pct,
         drawRate:    r.draw_rate,
         date:        r.date_str ?? r.logged_at,
-        logged_at:   r.logged_at ?? undefined,
+        logged_at:   parseRideDate(r.date_str) ?? r.logged_at ?? undefined,
         rideMode:    r.ride_mode ?? undefined,
         notes:       r.notes ?? undefined,
       });
@@ -295,9 +312,12 @@ async function saveRideLog(db: SQLiteDatabase, rides: RideLogEntry[]): Promise<v
       // but this keeps save/load symmetric
       tx.executeSql('DELETE FROM ride_log WHERE migrated = 0');
       for (const r of rides) {
-        const loggedAt = (() => {
+        const loggedAt = r.logged_at ?? (() => {
           try {
-            return new Date(`${r.date.replace(',', '').trim()} ${new Date().getFullYear()}`).toISOString();
+            // date is like "Jun 1, 10:30 AM" — put year before time for reliable parsing
+            const parts = r.date.replace(',', '').trim().split(' ');
+            const yr = new Date().getFullYear();
+            return new Date(`${parts[0]} ${parts[1]} ${yr} ${parts[2]} ${parts[3] ?? ''}`.trim()).toISOString();
           } catch { return now(); }
         })();
         tx.executeSql(
