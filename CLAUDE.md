@@ -1,13 +1,13 @@
 # Mission Control — Claude Context
 **Last updated:** May 2026
-**Version:** v0.4.2 (build 32)
+**Version:** v0.4.3 (build 33)
 
 ## What This Is
 An e-bike companion app for Android. Not a telemetry mirror — a logging, analysis, and AI advisory layer that works alongside any e-bike's companion app. Target users: Movcan V70 owners as initial beta community, expanding to all e-bike riders. Built in React Native 0.81.5, Expo SDK 53 bare workflow, Android only.
 
 ## Current Status
 - **Live:** In development. Not yet on Play Store.
-- **Version:** v0.4.2 (build 32)
+- **Version:** v0.4.3 (build 33)
 - **Platform:** Android only
 - **Release target:** Mid-June or July 2026
 - **AI chat:** Wired to Claude API — blocked pending Anthropic account resolution
@@ -20,7 +20,7 @@ An e-bike companion app for Android. Not a telemetry mirror — a logging, analy
 | Storage | AsyncStorage → SQLite | Migration pending |
 | AI | Claude Sonnet 4.6 API | Tier 3, blocked on account |
 | BLE | react-native-ble-plx | Movcan V70 only currently |
-| Keep awake | expo-keep-awake | Activate on BLE connect |
+| Keep awake / PiP | ScreenModule.kt (native) | FLAG_KEEP_SCREEN_ON full session; enterPip() stub ready for handlebar PiP |
 
 ## Architecture Decisions
 - **Mission Control complements Movcan companion app — does not compete with it.** Movcan app handles live hardware telemetry. Mission Control handles logging, analysis, AI advisory.
@@ -64,7 +64,7 @@ Theme persists via AsyncStorage. ThemeContext used throughout. Brand mark (MWS g
 3. Battery draw formula fix — delta over distance
 4. Recalibration feature — manual reset + gear-change trigger
 5. Event-driven popup on motor draw stop
-6. expo-keep-awake — activate on BLE connect, deactivate on disconnect
+6. PiP handlebar mode — wire enterPip() from ScreenModule into UI; stub already in place
 7. Telemetry screen reconsideration — replace with popup model
 8. Local AI foundation (Tier 2) — data interface design first
 9. SQLite migration from AsyncStorage
@@ -90,7 +90,13 @@ Theme persists via AsyncStorage. ThemeContext used throughout. Brand mark (MWS g
 "I'm working on Mission Control — an e-bike companion app in React Native 0.81.5 with Expo SDK 53 bare workflow, Android only. Pull the repo and read CLAUDE.md before making any changes. Respect all invariants. The app complements the Movcan companion app — it does not replace it. Confirm you understand the structure and invariants before I give you the next task."
 
 ## Changelog
-### May 2026
+### v0.4.3 (build 33) — May 2026
+- ScreenModule.kt: native Android module owns FLAG_KEEP_SCREEN_ON + enterPip() stub
+- Screen stays on for entire app session (activates in AppContent, cleans up on unmount)
+- PiP ready to wire: enterPip(ratioWidth, ratioHeight) — caller controls aspect ratio
+- src/utils/ScreenModule.ts: JS wrapper; no expo dependency
+
+### v0.4.1–0.4.2 — May 2026
 - BLE mutual authentication complete (~1.5s handshake)
 - Binary telemetry flowing at ~150ms
 - GPS speed integrated as authoritative source (replaced BLE trip_raw)

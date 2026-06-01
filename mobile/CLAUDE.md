@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.2 (versionCode 32)
+**Current version:** 0.4.3 (versionCode 33)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -19,6 +19,7 @@ Android only. Bare workflow (no Expo runtime).
 | GPS | @react-native-community/geolocation |
 | Storage | react-native-sqlite-storage (ebike.db) + RNFS sidecar JSON |
 | AI chat | Direct Anthropic API (user-supplied key, `claude-sonnet-4-6`) |
+| Keep awake / PiP | `ScreenModule.kt` (native) | `FLAG_KEEP_SCREEN_ON` active full session; `enterPip(w,h)` stub ready |
 
 ---
 
@@ -49,7 +50,7 @@ structure and `finalizeAutoRide` refs pattern must not be restructured.
 App.tsx
 ├── showSplash gate (MWSSplash, 3 s)
 └── ThemeProvider
-    └── AppContent
+    └── AppContent  ← activateKeepAwake() on mount / deactivateKeepAwake() on unmount
         ├── DB init + JSON→SQLite migration
         └── BleProvider (BleContext.tsx)
             ├── MissionControlScreen   [Mission tab]
@@ -200,8 +201,26 @@ Logo: `src/assets/brand/mws-logo.png`. Duration default: 3000 ms.
 
 ---
 
+## Screen / PiP (`src/utils/ScreenModule.ts` + `ScreenModule.kt`)
+
+`ScreenModule.kt` — native Android module registered via `ScreenModulePackage`.
+
+| Method | What it does |
+|---|---|
+| `activateKeepAwake()` | Adds `FLAG_KEEP_SCREEN_ON` to Activity window (UI thread) |
+| `deactivateKeepAwake()` | Clears the flag |
+| `enterPip(w, h)` | Enters PiP mode at given aspect ratio (API 26+, UI thread) |
+| `exitPip()` | Stub — PiP exits via user interaction; retained for future hooks |
+
+`App.tsx` calls `activateKeepAwake()` in `AppContent`'s first `useEffect`.
+To trigger PiP later: call `enterPip(16, 9)` (landscape strip) or `enterPip(2, 1)` (narrow portrait).
+The `.gitignore` has `android/` — new `.kt` files in `com.ebikeapp` must be `git add -f`'d.
+
+---
+
 ## Deferred / not yet implemented
 
+- **PiP handlebar mode** — `enterPip()` stub is wired; needs UI trigger (long-press, disconnect event, etc.)
 - **RevenueCat IAP** — Tier 1 (free) / Tier 2 (pro) subscription gating
 - **SQLite migration session** — consolidate JSON sidecar fields into main DB
 - **TFLite/ONNX range model** — upgrade path after ~200 tagged production rides
