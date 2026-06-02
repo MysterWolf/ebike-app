@@ -47,6 +47,10 @@ interface SidecarData {
   apiKey: string;
   customGearOptions: AppState['customGearOptions'];
   checklistState: AppState['checklistState'];
+  preflightNotifEnabled:   boolean;
+  preflightNotifHour:      number;
+  preflightNotifMinute:    number;
+  hasAskedNotifPermission: boolean;
 }
 
 async function loadSidecar(): Promise<SidecarData> {
@@ -55,7 +59,9 @@ async function loadSidecar(): Promise<SidecarData> {
       return JSON.parse(await RNFS.readFile(SIDECAR_FILE, 'utf8'));
     }
   } catch {}
-  return { apiKey: '', customGearOptions: {}, checklistState: {} };
+  return { apiKey: '', customGearOptions: {}, checklistState: {},
+           preflightNotifEnabled: true, preflightNotifHour: 6,
+           preflightNotifMinute: 30, hasAskedNotifPermission: false };
 }
 
 async function saveSidecar(data: SidecarData): Promise<void> {
@@ -130,10 +136,25 @@ export async function loadState(): Promise<AppState | null> {
       modLog:           mods,
       messages:         messages,
       // Sidecar fields
-      apiKey:           sidecar.apiKey,
-      customGearOptions: sidecar.customGearOptions,
-      checklistState:   sidecar.checklistState,
+      apiKey:                  sidecar.apiKey,
+      customGearOptions:       sidecar.customGearOptions,
+      checklistState:          sidecar.checklistState,
+      preflightNotifEnabled:   sidecar.preflightNotifEnabled   ?? true,
+      preflightNotifHour:      sidecar.preflightNotifHour      ?? 6,
+      preflightNotifMinute:    sidecar.preflightNotifMinute    ?? 30,
+      hasAskedNotifPermission: sidecar.hasAskedNotifPermission ?? false,
     };
+
+    // If the preflight notification fired while app was closed, reset checklist
+    try {
+      const [flagRes] = await db.executeSql(
+        "SELECT value FROM app_flags WHERE key = 'preflightResetPending'"
+      );
+      if (flagRes.rows.length > 0 && flagRes.rows.item(0).value === '1') {
+        state.checklistState = {};
+        await db.executeSql("DELETE FROM app_flags WHERE key = 'preflightResetPending'");
+      }
+    } catch {}
 
     return state;
 
@@ -161,9 +182,13 @@ export async function saveState(state: AppState): Promise<void> {
       saveModLog(db, state.modLog),
       saveMessages(db, state.messages),
       saveSidecar({
-        apiKey:            state.apiKey,
-        customGearOptions: state.customGearOptions,
-        checklistState:    state.checklistState,
+        apiKey:                  state.apiKey,
+        customGearOptions:       state.customGearOptions,
+        checklistState:          state.checklistState,
+        preflightNotifEnabled:   state.preflightNotifEnabled,
+        preflightNotifHour:      state.preflightNotifHour,
+        preflightNotifMinute:    state.preflightNotifMinute,
+        hasAskedNotifPermission: state.hasAskedNotifPermission,
       }),
     ]);
 

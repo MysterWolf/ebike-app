@@ -20,6 +20,7 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               add(BleForegroundServicePackage())
               add(ScreenModulePackage())
+              add(NotificationModulePackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

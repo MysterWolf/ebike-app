@@ -66,12 +66,6 @@ export function RideTab({ state, update, onSysMsg }: Props) {
 
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (weekGroups.length > 0 && expandedWeeks.size === 0) {
-      setExpandedWeeks(new Set([weekGroups[0].key]));
-    }
-  }, [weekGroups]);
-
   const { status, telemetry } = useBleContext();
   const liveBat = status === 'connected' && telemetry?.battery_pct != null
     ? telemetry.battery_pct
@@ -330,6 +324,12 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     }
     return Array.from(map.values()); // insertion order = newest-first (displayRides is pre-sorted)
   }, [displayRides]);
+
+  useEffect(() => {
+    if (weekGroups.length > 0 && expandedWeeks.size === 0) {
+      setExpandedWeeks(new Set([weekGroups[0].key]));
+    }
+  }, [weekGroups]);
 
   function toggleWeek(key: string, currentlyExpanded: boolean) {
     setExpandedWeeks(prev => {

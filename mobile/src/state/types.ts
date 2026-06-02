@@ -88,6 +88,10 @@ export interface AppState {
   rigOnline: boolean;
   apiKey: string;
   messages: Message[];
+  preflightNotifEnabled:   boolean;
+  preflightNotifHour:      number;
+  preflightNotifMinute:    number;
+  hasAskedNotifPermission: boolean;
 }
 
 export const DEFAULT_STATE: AppState = {
@@ -127,6 +131,10 @@ export const DEFAULT_STATE: AppState = {
   rigOnline: false,
   apiKey: '',
   messages: [],
+  preflightNotifEnabled:   true,
+  preflightNotifHour:      6,
+  preflightNotifMinute:    30,
+  hasAskedNotifPermission: false,
 };
 
 export type Tab = 'ride' | 'bike' | 'gear' | 'ops' | 'chat';

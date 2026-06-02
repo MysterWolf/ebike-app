@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.4 (versionCode 36)
+**Current version:** 0.4.5 (versionCode 37)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -221,6 +221,7 @@ The `.gitignore` has `android/` — new `.kt` files in `com.ebikeapp` must be `g
 ## Deferred / not yet implemented
 
 - **PiP handlebar mode** — `enterPip()` stub is wired; needs UI trigger (long-press, disconnect event, etc.)
+- **Notification year assumption** — `parseDateStr` uses `new Date().getFullYear()` for rides without a year in `date_str`; rides logged in a different calendar year will sort incorrectly (not a current concern)
 - **RevenueCat IAP** — Tier 1 (free) / Tier 2 (pro) subscription gating
 - **SQLite migration session** — consolidate JSON sidecar fields into main DB
 - **TFLite/ONNX range model** — upgrade path after ~200 tagged production rides

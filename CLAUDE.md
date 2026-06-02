@@ -1,13 +1,13 @@
 # Mission Control — Claude Context
 **Last updated:** June 2026
-**Version:** v0.4.4 (build 36)
+**Version:** v0.4.5 (build 37)
 
 ## What This Is
 An e-bike companion app for Android. Not a telemetry mirror — a logging, analysis, and AI advisory layer that works alongside any e-bike's companion app. Target users: Movcan V70 owners as initial beta community, expanding to all e-bike riders. Built in React Native 0.81.5, Expo SDK 53 bare workflow, Android only.
 
 ## Current Status
 - **Live:** In development. Not yet on Play Store.
-- **Version:** v0.4.4 (build 36)
+- **Version:** v0.4.5 (build 37)
 - **Platform:** Android only
 - **Release target:** Mid-June or July 2026
 - **AI chat:** Wired to Claude API — blocked pending Anthropic account resolution
@@ -90,6 +90,18 @@ Theme persists via AsyncStorage. ThemeContext used throughout. Brand mark (MWS g
 "I'm working on Mission Control — an e-bike companion app in React Native 0.81.5 with Expo SDK 53 bare workflow, Android only. Pull the repo and read CLAUDE.md before making any changes. Respect all invariants. The app complements the Movcan companion app — it does not replace it. Confirm you understand the structure and invariants before I give you the next task."
 
 ## Changelog
+### v0.4.5 (build 37) — June 2026
+- Feat: daily preflight check notification system
+- `PreflightReceiver.kt`: BroadcastReceiver fires notification, writes `preflightResetPending` to SQLite `app_flags`, reschedules for next day via AlarmManager
+- `NotificationModule.kt`: native module — `schedulePreflightNotification(h, m)`, `cancelPreflightNotification()`, `isScheduled()`, `getLaunchTab()`
+- `NotificationService.ts`: JS wrapper with `requestNotificationPermission()` (Android 13+ gated)
+- `OpsTab`: NOTIFICATIONS section — enable/disable toggle, 5 time presets (6AM–1PM), "Next preflight check" label
+- `storage.ts`: `preflightNotifEnabled/Hour/Minute`, `hasAskedNotifPermission` added to sidecar JSON; checklist auto-reset on load if `preflightResetPending` flag set
+- `MissionControlScreen`: `initialTab` prop for notification tap-to-OPS navigation; startup effect requests permission and reschedules if alarm lost
+- `App.tsx`: reads launch intent tab on ready, passes `initialMissionTab` down
+- `AndroidManifest.xml`: `POST_NOTIFICATIONS`, `SCHEDULE_EXACT_ALARM`, `PreflightReceiver` registered
+- Fix: weekGroups `useEffect` moved to after `useMemo` declaration (was causing `ReferenceError` in prior build)
+
 ### v0.4.4 (build 36) — June 2026
 - Fix: parseDateStr used new Date(string) which Hermes silently rejects for non-ISO formats — replaced with numeric Date constructor (year, month, day, hour, minute) to parse "May 15, 2:30 PM" reliably
 - Fix: week collapse toggle stuck in implicit-open/explicit-open loop — seeded expandedWeeks with first group key via useEffect; removed size===0 early return from isWeekExpanded; toggleWeek now receives currentlyExpanded from render site

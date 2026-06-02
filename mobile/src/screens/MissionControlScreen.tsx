@@ -4,6 +4,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { AppState, DEFAULT_STATE, Message, Tab } from '../state/types';
 import { saveState, loadState } from '../utils/storage';
 import { callAPI, nowTime, WELCOME_MESSAGE } from '../utils/ai';
+import { requestNotificationPermission, isPreflightScheduled, schedulePreflightNotification } from '../utils/NotificationService';
 import { useBleContext } from '../context/BleContext';
 
 import { SetupWizard } from '../components/SetupWizard';
@@ -17,10 +18,10 @@ import { GearTab } from '../components/tabs/GearTab';
 import { OpsTab } from '../components/tabs/OpsTab';
 import { ChatPanel } from '../components/chat/ChatPanel';
 
-export function MissionControlScreen() {
+export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
   const { C } = useTheme();
   const [state, setStateRaw] = useState<AppState>(DEFAULT_STATE);
-  const [activeTab, setActiveTab] = useState<Tab>('ride');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? 'ride');
   const [isTyping, setIsTyping] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
@@ -66,6 +67,21 @@ export function MissionControlScreen() {
       setLoaded(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    async function notifStartup() {
+      if (!state.hasAskedNotifPermission) {
+        await requestNotificationPermission();
+        update({ hasAskedNotifPermission: true });
+      }
+      if (state.preflightNotifEnabled) {
+        const scheduled = await isPreflightScheduled();
+        if (!scheduled) schedulePreflightNotification(state.preflightNotifHour, state.preflightNotifMinute);
+      }
+    }
+    notifStartup();
+  }, [loaded]);
 
   const update = useCallback((updates: Partial<AppState>) => {
     if (updates.rideMode !== undefined) setRideMode(updates.rideMode);

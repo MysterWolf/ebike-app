@@ -28,6 +28,7 @@ import {
   ModCategory,
 } from '../../state/types';
 import { OPS_PROMPTS } from '../../utils/ai';
+import { schedulePreflightNotification, cancelPreflightNotification } from '../../utils/NotificationService';
 import { nextService } from '../../utils/calculations';
 
 interface Props {
@@ -415,6 +416,59 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
   return (
     <>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+
+        {/* ── NOTIFICATIONS ── */}
+        <CollapsibleSection title="NOTIFICATIONS" defaultOpen={false}>
+          <View style={styles.rigToggleRow}>
+            <Text style={styles.checkLabel}>DAILY PREFLIGHT CHECK</Text>
+            <Switch
+              value={state.preflightNotifEnabled}
+              onValueChange={v => {
+                update({ preflightNotifEnabled: v });
+                if (v) schedulePreflightNotification(state.preflightNotifHour, state.preflightNotifMinute);
+                else   cancelPreflightNotification();
+              }}
+              trackColor={{ false: C.border, true: C.accent }}
+              thumbColor={C.white}
+            />
+          </View>
+          {state.preflightNotifEnabled && (
+            <>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                {([
+                  { sub: '6:00 AM',  h: 6,  m: 0  },
+                  { sub: '7:30 AM',  h: 7,  m: 30 },
+                  { sub: '9:00 AM',  h: 9,  m: 0  },
+                  { sub: '11:30 AM', h: 11, m: 30 },
+                  { sub: '1:00 PM',  h: 13, m: 0  },
+                ] as const).map(opt => {
+                  const active = state.preflightNotifHour === opt.h && state.preflightNotifMinute === opt.m;
+                  return (
+                    <TouchableOpacity key={opt.sub}
+                      style={[styles.modePill, active && styles.modePillActive]}
+                      onPress={() => {
+                        update({ preflightNotifHour: opt.h, preflightNotifMinute: opt.m });
+                        schedulePreflightNotification(opt.h, opt.m);
+                      }}>
+                      <Text style={[styles.modePillText, active && styles.modePillTextActive]}>
+                        {opt.sub}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={[styles.checkSublabel, { marginTop: 8 }]}>
+                {(() => {
+                  const h = state.preflightNotifHour;
+                  const m = state.preflightNotifMinute;
+                  const ampm = h >= 12 ? 'PM' : 'AM';
+                  const h12  = h % 12 === 0 ? 12 : h % 12;
+                  return `Next preflight check: Tomorrow at ${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+                })()}
+              </Text>
+            </>
+          )}
+        </CollapsibleSection>
 
         {/* ── DISPLAY MODE ── */}
         <CollapsibleSection title="DISPLAY MODE" defaultOpen={true}>

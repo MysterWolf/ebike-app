@@ -11,6 +11,8 @@ import { initDb } from './src/db/database';
 import { migrateJsonToSqlite } from './src/db/migrate_json';
 import { MWSSplash } from './src/components/shared/MWSSplash';
 import { activateKeepAwake, deactivateKeepAwake } from './src/utils/ScreenModule';
+import { getLaunchTab } from './src/utils/NotificationService';
+import { Tab } from './src/state/types';
 
 function AppContent(): React.JSX.Element {
   const { C, resolvedMode } = useTheme();
@@ -18,6 +20,7 @@ function AppContent(): React.JSX.Element {
   const [error,  setError]  = useState<string | null>(null);
   const [migMsg, setMigMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'mission' | 'telemetry'>('mission');
+  const [initialMissionTab, setInitialMissionTab] = useState<Tab | undefined>();
 
   const dismissMigMsg = useCallback(() => setMigMsg(null), []);
 
@@ -49,6 +52,13 @@ function AppContent(): React.JSX.Element {
     setup();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    getLaunchTab().then(tab => {
+      if (tab === 'ops') setInitialMissionTab('ops');
+    });
+  }, [ready]);
 
   const styles = useMemo(() => StyleSheet.create({
     container:   { flex: 1, backgroundColor: C.surface },
@@ -105,7 +115,7 @@ function AppContent(): React.JSX.Element {
         {/* Both screens stay mounted — display:none hides the inactive one
             without unmounting it, so BLE state and connection survive tab switches. */}
         <View style={[styles.screen, activeTab !== 'mission'   && styles.hidden]}>
-          <MissionControlScreen />
+          <MissionControlScreen initialTab={initialMissionTab} />
         </View>
         <View style={[styles.screen, activeTab !== 'telemetry' && styles.hidden]}>
           <TelemetryScreen />
