@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import {
   Alert,
   Modal,
@@ -65,6 +65,12 @@ export function RideTab({ state, update, onSysMsg }: Props) {
   const [editNotes, setEditNotes] = useState('');
 
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (weekGroups.length > 0 && expandedWeeks.size === 0) {
+      setExpandedWeeks(new Set([weekGroups[0].key]));
+    }
+  }, [weekGroups]);
 
   const { status, telemetry } = useBleContext();
   const liveBat = status === 'connected' && telemetry?.battery_pct != null
@@ -325,17 +331,15 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     return Array.from(map.values()); // insertion order = newest-first (displayRides is pre-sorted)
   }, [displayRides]);
 
-  function toggleWeek(key: string) {
+  function toggleWeek(key: string, currentlyExpanded: boolean) {
     setExpandedWeeks(prev => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      currentlyExpanded ? next.delete(key) : next.add(key);
       return next;
     });
   }
 
-  function isWeekExpanded(key: string, groupIndex: number) {
-    // Most recent week open by default until user toggles anything
-    if (expandedWeeks.size === 0) return groupIndex === 0;
+  function isWeekExpanded(key: string) {
     return expandedWeeks.has(key);
   }
 
@@ -493,7 +497,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
             </Text>
 
             {weekGroups.map((group, gi) => {
-              const expanded = isWeekExpanded(group.key, gi);
+              const expanded = isWeekExpanded(group.key);
               const totalDist = group.rides.reduce((s, { ride }) => s + ride.distance, 0);
               const prevMonth = gi > 0 ? weekGroups[gi - 1].month : null;
               const showMonthDivider = group.month && group.month !== prevMonth;
@@ -510,7 +514,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
                   {/* Week header row */}
                   <TouchableOpacity
                     style={[styles.weekHeader, expanded && styles.weekHeaderExpanded]}
-                    onPress={() => toggleWeek(group.key)}
+                    onPress={() => toggleWeek(group.key, expanded)}
                     activeOpacity={0.7}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.weekLabelText}>{group.label}</Text>
