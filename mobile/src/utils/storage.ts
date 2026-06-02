@@ -20,12 +20,20 @@ const SIDECAR_FILE = `${RNFS.DocumentDirectoryPath}/ebike-config.json`;
 
 function parseDateStr(dateStr: string): string {
   try {
-    // Input: "May 15, 2:30 PM"
-    // Target: "May 15, 2026 2:30 PM" — year inserted before time
-    const withYear = dateStr.replace(', ', ', 2026 ');
-    const parsed = new Date(withYear);
-    if (isNaN(parsed.getTime())) throw new Error('invalid');
-    return parsed.toISOString();
+    const MONTHS: Record<string, number> = {
+      Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5,
+      Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
+    };
+    // "May 15, 2:30 PM" → ["May", "15", "2:30", "PM"]
+    const parts = dateStr.trim().split(/[\s,]+/).filter(Boolean);
+    const month = MONTHS[parts[0]];
+    const day   = parseInt(parts[1], 10);
+    const [h, m] = parts[2].split(':').map(Number);
+    const isPM   = parts[3]?.toUpperCase() === 'PM';
+    const hour   = isPM && h !== 12 ? h + 12 : !isPM && h === 12 ? 0 : h;
+    const year   = new Date().getFullYear();
+    if (month === undefined || isNaN(day) || isNaN(h) || isNaN(m)) throw new Error('bad');
+    return new Date(year, month, day, hour, m, 0, 0).toISOString();
   } catch {
     return new Date().toISOString();
   }
