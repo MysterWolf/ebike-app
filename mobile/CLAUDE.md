@@ -126,7 +126,7 @@ Key fields relevant to ride pipeline:
 | `modeBaseline(mode)` | Returns %/mi baseline: MAX_RANGE=1.2, SPORT/HARD=4.7, else 1.75 |
 | `overallAvg(state)` | Distance-weighted avg across all rides + 20 virtual-mile anchor at 1.75 |
 | `estRange(state, batteryPct?)` | `batteryPct / overallAvg`; callers pass live BLE value |
-| `chargeTime(state, batteryPct?)` | `capacityAh × needed% / chargerAmps × 1.15` |
+| `chargeTime(state, batteryPct?)` | `capacityAh × needed% / chargerAmps × (voltage / 58.8)` — 58.8V is 14S Li-ion full-charge voltage; corrects for nominal vs charge voltage difference |
 | `lastRideDraw(state)` | Most recent ride's drawRate by `logged_at` |
 
 Key invariant: `NEUTRAL_BASELINE = 1.75` — mode switches do not affect `overallAvg`.

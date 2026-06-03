@@ -1,6 +1,6 @@
 # Mission Control — Claude Context
 **Last updated:** June 2026
-**Version:** v0.4.5 (build 37)
+**Version:** v0.4.5 (build 37+)
 
 ## What This Is
 An e-bike companion app for Android. Not a telemetry mirror — a logging, analysis, and AI advisory layer that works alongside any e-bike's companion app. Target users: Movcan V70 owners as initial beta community, expanding to all e-bike riders. Built in React Native 0.81.5, Expo SDK 53 bare workflow, Android only.
@@ -90,6 +90,9 @@ Theme persists via AsyncStorage. ThemeContext used throughout. Brand mark (MWS g
 "I'm working on Mission Control — an e-bike companion app in React Native 0.81.5 with Expo SDK 53 bare workflow, Android only. Pull the repo and read CLAUDE.md before making any changes. Respect all invariants. The app complements the Movcan companion app — it does not replace it. Confirm you understand the structure and invariants before I give you the next task."
 
 ## Changelog
+### v0.4.5 (build 37+) — June 2026
+- Fix: `chargeTime()` in calculations.ts now uses Wh-based voltage correction (`state.voltage / 58.8`) instead of incorrect ×1.15 flat overhead. 58.8V is the 14S Li-ion full-charge voltage. Diagnosing revealed capacityAh = 23.4 (not 20) — formula now gives ~9.8h for 0%→95% on a 23.4Ah / 2A / 52V setup, matching real-world observation.
+
 ### v0.4.5 (build 37) — June 2026
 - Feat: daily preflight check notification system
 - `PreflightReceiver.kt`: BroadcastReceiver fires notification, writes `preflightResetPending` to SQLite `app_flags`, reschedules for next day via AlarmManager
