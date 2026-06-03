@@ -38,8 +38,11 @@ export function estRange(state: AppState, batteryPct?: number): number {
 
 export function chargeTime(state: AppState, batteryPct?: number): number {
   const needed = Math.max(0, state.chargeTarget - (batteryPct ?? state.battery));
-  if (state.chargerAmps <= 0) return 0;
-  return (state.capacityAh * needed / 100 / state.chargerAmps) * 1.15;
+  if (state.chargerAmps <= 0 || state.capacityAh <= 0) return 0;
+  // Wh-based estimate: account for the difference between nominal battery voltage
+  // and full-charge voltage (14S Li-ion: 58.8V). Replaces the incorrect ×1.15 overhead.
+  const voltageRatio = (state.voltage > 0 ? state.voltage : 52) / 58.8;
+  return (state.capacityAh * needed / 100 / state.chargerAmps) * voltageRatio;
 }
 
 export function nextService(odometer: number): number {
