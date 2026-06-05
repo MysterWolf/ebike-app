@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.5 (versionCode 37)
+**Current version:** 0.4.6 (versionCode 38)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -215,6 +215,16 @@ Logo: `src/assets/brand/mws-logo.png`. Duration default: 3000 ms.
 `App.tsx` calls `activateKeepAwake()` in `AppContent`'s first `useEffect`.
 To trigger PiP later: call `enterPip(16, 9)` (landscape strip) or `enterPip(2, 1)` (narrow portrait).
 The `.gitignore` has `android/` — new `.kt` files in `com.ebikeapp` must be `git add -f`'d.
+
+---
+
+## Battery SOC estimation
+
+Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0) × 100`, clamped 0–100.
+
+- 42.0V = 0% (14S fully depleted), 58.8V = 100% (14S fully charged)
+- Voltage multiplier for the V70 BLE packet: `buf[5] × 0.325` (confirmed via raw logcat: buf[5]=181 at full charge → 58.8V)
+- **A 3–5% offset vs the Movcan companion app is expected and correct.** The Movcan uses coulomb counting (integrates current out of the pack). Voltage-based estimation reads slightly higher at the top of the charge curve where cell voltage is flat. This is not a bug — it is a fundamental difference in estimation method.
 
 ---
 
