@@ -87,10 +87,12 @@ export function MetricsRows({ state }: Props) {
   const avg      = overallAvg(state);
   const baseline = modeBaseline(state.rideMode);
 
-  const { status, telemetry, liveDrawRate, gpsDistMiles } = useBleContext();
-  const liveBat = status === 'connected' && telemetry?.battery_pct != null
-    ? telemetry.battery_pct
-    : state.battery;
+  const { status, telemetry, liveDrawRate, gpsDistMiles, lastKnownBlePct } = useBleContext();
+  const isLive    = status === 'connected' && telemetry?.battery_pct != null;
+  const isLastBle = !isLive && lastKnownBlePct !== null;
+  const liveBat   = isLive
+    ? telemetry!.battery_pct!
+    : lastKnownBlePct ?? state.battery;
 
   // Gate live draw rate at 0.5 mi — below that the per-mile figure is too noisy
   // to be a useful blend signal for the range agent.
@@ -126,7 +128,7 @@ export function MetricsRows({ state }: Props) {
         <View style={styles.tile}>
           <Text style={styles.label}>BATTERY</Text>
           <Text style={[styles.value, { color: batColor }]}>{liveBat.toFixed(0)}</Text>
-          <Text style={styles.unit}>%</Text>
+          <Text style={styles.unit}>{isLastBle ? '% last' : '%'}</Text>
         </View>
         <View style={styles.tile}>
           <Text style={styles.label}>EST. RANGE</Text>

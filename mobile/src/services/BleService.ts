@@ -144,10 +144,10 @@ function decodeNotify2(base64: string): Partial<V70Telemetry> {
       fileLog(`DECODE REJECTED: XOR check failed raw:${buf.toString('hex')}`);
     }
 
-    // buf[5] * 0.413 = volts. Ground truth: buf[5]=127 → 52.4V at 62% on 52V (14S) pack.
-    const battery_v   = parseFloat((buf[5] * 0.413).toFixed(1));
+    // Movcan V70: 14S Li-ion, 42.0V (0%) – 58.8V (100%). buf[5]=181 at full charge → 181×0.325=58.8V
+    const battery_v   = parseFloat((buf[5] * 0.325).toFixed(1));
     const battery_pct = Math.max(0, Math.min(100,
-      Math.round((battery_v - 42) / 16.8 * 100)
+      Math.round((battery_v - 42.0) / (58.8 - 42.0) * 100)
     ));
 
     const trip_raw     = buf[7];                 // ~100 m/unit, 0 at session start

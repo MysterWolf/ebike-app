@@ -1,6 +1,20 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { ToastAndroid, PermissionsAndroid, Platform } from 'react-native';
+import RNFS from 'react-native-fs';
 import Geolocation from '@react-native-community/geolocation';
+
+const LAST_BATTERY_FILE = `${RNFS.DocumentDirectoryPath}/last_known_battery.json`;
+async function readLastBattery(): Promise<number | null> {
+  try {
+    if (await RNFS.exists(LAST_BATTERY_FILE)) {
+      return JSON.parse(await RNFS.readFile(LAST_BATTERY_FILE, 'utf8'));
+    }
+  } catch {}
+  return null;
+}
+function writeLastBattery(pct: number): void {
+  RNFS.writeFile(LAST_BATTERY_FILE, JSON.stringify(pct), 'utf8').catch(() => {});
+}
 import { BleService, BleStatus, V70Telemetry } from '../services/BleService';
 import { dbRun } from '../db/database';
 import { haversineDistanceMiles, metersPerSecondToMph } from '../utils/rideCalculations';
@@ -13,9 +27,10 @@ interface BleContextValue {
   connect:      () => Promise<void>;
   disconnect:   () => Promise<void>;
   setRideMode:  (mode: string) => void;
-  gpsSpeedMph:  number | null;   // live GPS speed; null when not riding
-  gpsDistMiles: number;          // accumulated GPS distance for the current ride
-  liveDrawRate: number | null;   // (battery_start - battery_now) / gpsDistMiles; null < 0.1 mi
+  gpsSpeedMph:      number | null;   // live GPS speed; null when not riding
+  gpsDistMiles:     number;          // accumulated GPS distance for the current ride
+  liveDrawRate:     number | null;   // (battery_start - battery_now) / gpsDistMiles; null < 0.1 mi
+  lastKnownBlePct:  number | null;   // last BLE-read battery %, persisted across sessions
 }
 
 const BleContext = createContext<BleContextValue | null>(null);
@@ -52,10 +67,16 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   // Battery pct refs — prefer direct pct over voltage conversion
   const startBattPctRef = useRef<number | null>(null);
   const lastBattPctRef  = useRef<number | null>(null);
-  const [liveDrawRate, setLiveDrawRate] = useState<number | null>(null);
+  const [liveDrawRate,    setLiveDrawRate]    = useState<number | null>(null);
+  const [lastKnownBlePct, setLastKnownBlePct] = useState<number | null>(null);
 
   const addLog = useCallback((msg: string) => {
     setLog(prev => [`${new Date().toLocaleTimeString()} ${msg}`, ...prev.slice(0, 49)]);
+  }, []);
+
+  // Load persisted BLE battery % on mount
+  useEffect(() => {
+    readLastBattery().then(val => { if (val !== null) setLastKnownBlePct(val); });
   }, []);
 
   // Called on every disconnect (user-initiated or peer drop).
@@ -215,7 +236,11 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
       }
       // Always update last-known values for ride-end snapshot
       if (t.battery_v   != null) lastBattVRef.current   = t.battery_v;
-      if (t.battery_pct != null) lastBattPctRef.current  = t.battery_pct;
+      if (t.battery_pct != null) {
+        lastBattPctRef.current = t.battery_pct;
+        setLastKnownBlePct(t.battery_pct);
+        writeLastBattery(t.battery_pct);
+      }
       if (t.trip_raw    != null) lastTripRawRef.current  = t.trip_raw;
 
       // Live draw rate: (battery_start_pct - battery_now_pct) / gpsDistMiles
@@ -243,7 +268,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <BleContext.Provider value={{ status, statusMsg, telemetry, log, connect, disconnect, setRideMode, gpsSpeedMph, gpsDistMiles, liveDrawRate }}>
+    <BleContext.Provider value={{ status, statusMsg, telemetry, log, connect, disconnect, setRideMode, gpsSpeedMph, gpsDistMiles, liveDrawRate, lastKnownBlePct }}>
       {children}
     </BleContext.Provider>
   );
