@@ -115,6 +115,12 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
     const battUsed = (startPct != null && endPct != null) ? Math.max(0, startPct - endPct) : 0;
     const drawRate = distMi > 0 ? battUsed / distMi : 0;
 
+    // ── non-ride connection guard ─────────────────────────────────────────────
+    if (distMi < 0.1 && battUsed < 3) {
+      console.log(`[AutoRide] Discarded — ${distMi.toFixed(3)} mi / ${battUsed}% — below minimum thresholds`);
+      return;
+    }
+
     const startIso = new Date(startTime).toISOString();
     const endIso   = new Date(endTime).toISOString();
     const dateStr  =
@@ -201,7 +207,6 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
 
       // ── Ride START ────────────────────────────────────────────────────────
       if (s === 'connected') {
-        rideStartTimeRef.current     = Date.now();
         gotFirstTelemetryRef.current = false;
         startBattVRef.current        = null;
         lastBattVRef.current         = null;
@@ -227,8 +232,9 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
       setTelemetry({ ...t });
       if (t.raw_notify_2) addLog(`N2: ${t.raw_notify_2}`);
 
-      // First telemetry packet after connect → capture start battery
+      // First telemetry packet after connect → start ride clock + capture start battery
       if (!gotFirstTelemetryRef.current && t.battery_v != null) {
+        rideStartTimeRef.current     = Date.now();
         startBattVRef.current        = t.battery_v;
         startBattPctRef.current      = t.battery_pct ?? null;
         gotFirstTelemetryRef.current = true;
