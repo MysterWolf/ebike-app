@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.6 (versionCode 38)
+**Current version:** 0.4.7 (versionCode 39)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -239,6 +239,28 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 - **Theme or UI changes** — deferred
 
 ---
+
+## Changelog
+
+### v0.4.7 (build 39) — June 2026
+- Fix: `rideLog` stale after auto-logged ride — `BleContext` now exposes `lastRideLoggedAt`
+  (set after each successful `dbRun` INSERT); `MissionControlScreen` watches it and reloads
+  `rideLog` from storage so LAST RIDE / OVERALL AVG / EST. RANGE tiles update immediately
+  after disconnect without restarting the app.
+- Fix: battery tile showed 0 even after manual input — `lastKnownBlePct ?? state.battery`
+  used `??` which doesn't skip `0`, so a persisted zero BLE reading permanently shadowed
+  `state.battery`. Fix: sync BLE battery into `state.battery` via `update()` on disconnect
+  in `MissionControlScreen`; `MetricsRows` now reads `state.battery` directly (single
+  source of truth). Manual input always wins.
+
+### v0.4.6 (build 38) — June 2026
+- Fix: voltage multiplier `buf[5] × 0.413` → `0.325` (confirmed via logcat: buf[5]=181 at
+  full charge → 58.8V). Percentage formula updated to explicit 14S bounds.
+- Fix: on BLE disconnect, hold last BLE-read battery % instead of reverting to manual entry.
+  Persisted to `last_known_battery.json` via RNFS.
+- Fix: phantom ride logging — ride clock delayed to first telemetry packet; discard rule
+  `distMi < 0.1 AND battUsed < 3%` added.
+- Docs: Battery SOC estimation section added to CLAUDE.md.
 
 ## Build
 
