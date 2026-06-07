@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { AppState, DEFAULT_STATE, Message, Tab } from '../state/types';
@@ -27,7 +27,8 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
   const [showWizard, setShowWizard] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
-  const { setRideMode } = useBleContext();
+  const { setRideMode, status, lastKnownBlePct, lastRideLoggedAt } = useBleContext();
+  const prevBleStatus = useRef(status);
 
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
@@ -99,6 +100,27 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
       return next;
     });
   }, []);
+
+  // Reload rideLog into state after BleContext auto-saves a ride to the DB
+  useEffect(() => {
+    if (!lastRideLoggedAt || !loaded) return;
+    loadState().then(saved => {
+      if (saved) setStateRaw(prev => ({ ...prev, rideLog: saved.rideLog }));
+    }).catch(err => console.error('[MCS] rideLog reload:', err));
+  }, [lastRideLoggedAt, loaded, update]);
+
+  // Sync BLE battery reading into state.battery on disconnect so the
+  // metrics tile and all calculations stay accurate without manual re-entry
+  useEffect(() => {
+    if (
+      prevBleStatus.current === 'connected' &&
+      (status === 'disconnected' || status === 'error') &&
+      lastKnownBlePct !== null && lastKnownBlePct > 0
+    ) {
+      update({ battery: lastKnownBlePct });
+    }
+    prevBleStatus.current = status;
+  }, [status, lastKnownBlePct, update]);
 
   const sendMessage = useCallback(
     async (text: string) => {

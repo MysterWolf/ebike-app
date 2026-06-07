@@ -31,6 +31,7 @@ interface BleContextValue {
   gpsDistMiles:     number;          // accumulated GPS distance for the current ride
   liveDrawRate:     number | null;   // (battery_start - battery_now) / gpsDistMiles; null < 0.1 mi
   lastKnownBlePct:  number | null;   // last BLE-read battery %, persisted across sessions
+  lastRideLoggedAt: number | null;   // bumps (Date.now()) after each auto-saved ride
 }
 
 const BleContext = createContext<BleContextValue | null>(null);
@@ -69,6 +70,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   const lastBattPctRef  = useRef<number | null>(null);
   const [liveDrawRate,    setLiveDrawRate]    = useState<number | null>(null);
   const [lastKnownBlePct, setLastKnownBlePct] = useState<number | null>(null);
+  const [lastRideLoggedAt, setLastRideLoggedAt] = useState<number | null>(null);
 
   const addLog = useCallback((msg: string) => {
     setLog(prev => [`${new Date().toLocaleTimeString()} ${msg}`, ...prev.slice(0, 49)]);
@@ -148,6 +150,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
       const toast = `Ride logged — ${mins} min, ${battUsed}% battery used`;
       ToastAndroid.show(toast, ToastAndroid.LONG);
       console.log('[AutoRide] Saved:', toast);
+      setLastRideLoggedAt(Date.now());
     } catch (err) {
       console.error('[AutoRide] Save failed:', err);
     }
@@ -274,7 +277,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <BleContext.Provider value={{ status, statusMsg, telemetry, log, connect, disconnect, setRideMode, gpsSpeedMph, gpsDistMiles, liveDrawRate, lastKnownBlePct }}>
+    <BleContext.Provider value={{ status, statusMsg, telemetry, log, connect, disconnect, setRideMode, gpsSpeedMph, gpsDistMiles, liveDrawRate, lastKnownBlePct, lastRideLoggedAt }}>
       {children}
     </BleContext.Provider>
   );
