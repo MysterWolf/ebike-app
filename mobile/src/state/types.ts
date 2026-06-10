@@ -51,6 +51,12 @@ export interface Message {
 
 export type GearCategory = 'footwear' | 'helmet' | 'gloves' | 'jacket' | 'cargo' | 'lock';
 
+export interface PreflightSchedule {
+  id: string;
+  hour: number;   // 0-23
+  minute: number; // 0-59
+}
+
 export interface AppState {
   odometer: number;
   battery: number;
@@ -89,9 +95,10 @@ export interface AppState {
   apiKey: string;
   messages: Message[];
   preflightNotifEnabled:   boolean;
-  preflightNotifHour:      number;
-  preflightNotifMinute:    number;
+  preflightNotifHour:      number;   // legacy — kept for migration only
+  preflightNotifMinute:    number;   // legacy — kept for migration only
   hasAskedNotifPermission: boolean;
+  preflightSchedules:      PreflightSchedule[];
 }
 
 export const DEFAULT_STATE: AppState = {
@@ -135,6 +142,7 @@ export const DEFAULT_STATE: AppState = {
   preflightNotifHour:      6,
   preflightNotifMinute:    30,
   hasAskedNotifPermission: false,
+  preflightSchedules:      [],
 };
 
 export type Tab = 'ride' | 'bike' | 'gear' | 'ops' | 'chat';

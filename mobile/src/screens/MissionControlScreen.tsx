@@ -4,7 +4,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { AppState, DEFAULT_STATE, Message, Tab } from '../state/types';
 import { saveState, loadState } from '../utils/storage';
 import { callAPI, nowTime, WELCOME_MESSAGE } from '../utils/ai';
-import { requestNotificationPermission, isPreflightScheduled, schedulePreflightNotification } from '../utils/NotificationService';
+import { requestNotificationPermission, isPreflightScheduled, schedulePreflightNotifications } from '../utils/NotificationService';
 import { useBleContext } from '../context/BleContext';
 
 import { SetupWizard } from '../components/SetupWizard';
@@ -76,9 +76,9 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
         await requestNotificationPermission();
         update({ hasAskedNotifPermission: true });
       }
-      if (state.preflightNotifEnabled) {
+      if ((state.preflightSchedules ?? []).length > 0) {
         const scheduled = await isPreflightScheduled();
-        if (!scheduled) schedulePreflightNotification(state.preflightNotifHour, state.preflightNotifMinute);
+        if (!scheduled) await schedulePreflightNotifications(state.preflightSchedules);
       }
     }
     notifStartup();

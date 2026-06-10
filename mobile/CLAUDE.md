@@ -242,6 +242,17 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 
 ## Changelog
 
+### v0.4.8 — June 2026
+- Feat: multi-alarm preflight notification scheduler
+- Replaced hardcoded 5-slot time picker with 5 category tiles (Morning 5:30 AM, Midday 12:00 PM, Afternoon 3:30 PM, Evening 6:00 PM, Custom cold-open)
+- Tapping a tile opens a custom +/− stepper time picker modal (12h display, AM/PM toggle, 5-min minute increments) — no external package needed
+- Up to 3 simultaneous daily alarms; each shown in a deletable list below the tiles
+- `PreflightReceiver.kt` / `NotificationModule.kt` rewritten with `slotId` support; `REQUEST_CODE_BASE = 42`, `NOTIF_ID_BASE = 1001`; slots 0-2 → request codes 42-44
+- `NotificationService.ts` API: `schedulePreflightNotifications(schedules)` cancels all then schedules each slot; `cancelAllPreflightNotifications()` replaces single-cancel
+- `storage.ts`: `preflightSchedules: PreflightSchedule[]` added to `SidecarData`; migration from legacy single-alarm fields on first load
+- `types.ts`: `PreflightSchedule` interface, `preflightSchedules` field on `AppState` and `DEFAULT_STATE`; legacy `preflightNotifHour/Minute` kept for migration only
+- `MissionControlScreen`: startup reschedule uses `schedulePreflightNotifications(state.preflightSchedules)` instead of single-slot call
+
 ### v0.4.7 (build 39) — June 2026
 - Fix: `rideLog` stale after auto-logged ride — `BleContext` now exposes `lastRideLoggedAt`
   (set after each successful `dbRun` INSERT); `MissionControlScreen` watches it and reloads

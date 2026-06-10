@@ -11,7 +11,7 @@
 // ============================================================
 
 import RNFS from 'react-native-fs';
-import { AppState, DEFAULT_STATE, RideLogEntry, ChargeLogEntry, TirePressureEntry, ServiceLogEntry, ModLogEntry, Message } from '../state/types';
+import { AppState, DEFAULT_STATE, RideLogEntry, ChargeLogEntry, TirePressureEntry, ServiceLogEntry, ModLogEntry, Message, PreflightSchedule } from '../state/types';
 import { getDb } from '../db/database';
 import type { SQLiteDatabase } from 'react-native-sqlite-storage';
 
@@ -51,6 +51,7 @@ interface SidecarData {
   preflightNotifHour:      number;
   preflightNotifMinute:    number;
   hasAskedNotifPermission: boolean;
+  preflightSchedules:      PreflightSchedule[];
 }
 
 async function loadSidecar(): Promise<SidecarData> {
@@ -61,7 +62,8 @@ async function loadSidecar(): Promise<SidecarData> {
   } catch {}
   return { apiKey: '', customGearOptions: {}, checklistState: {},
            preflightNotifEnabled: true, preflightNotifHour: 6,
-           preflightNotifMinute: 30, hasAskedNotifPermission: false };
+           preflightNotifMinute: 30, hasAskedNotifPermission: false,
+           preflightSchedules: [] };
 }
 
 async function saveSidecar(data: SidecarData): Promise<void> {
@@ -143,6 +145,17 @@ export async function loadState(): Promise<AppState | null> {
       preflightNotifHour:      sidecar.preflightNotifHour      ?? 6,
       preflightNotifMinute:    sidecar.preflightNotifMinute    ?? 30,
       hasAskedNotifPermission: sidecar.hasAskedNotifPermission ?? false,
+      preflightSchedules:      (() => {
+        const saved = sidecar.preflightSchedules ?? [];
+        if (saved.length > 0) return saved;
+        // Migrate from legacy single-alarm fields
+        const h = sidecar.preflightNotifHour ?? 6;
+        const m = sidecar.preflightNotifMinute ?? 30;
+        if (sidecar.preflightNotifEnabled) {
+          return [{ id: `migrated-${h}-${m}`, hour: h, minute: m }];
+        }
+        return [];
+      })(),
     };
 
     // If the preflight notification fired while app was closed, reset checklist
@@ -189,6 +202,7 @@ export async function saveState(state: AppState): Promise<void> {
         preflightNotifHour:      state.preflightNotifHour,
         preflightNotifMinute:    state.preflightNotifMinute,
         hasAskedNotifPermission: state.hasAskedNotifPermission,
+        preflightSchedules:      state.preflightSchedules ?? [],
       }),
     ]);
 

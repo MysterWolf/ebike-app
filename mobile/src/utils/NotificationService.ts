@@ -1,13 +1,20 @@
 import { NativeModules, PermissionsAndroid, Platform } from 'react-native';
+import { PreflightSchedule } from '../state/types';
 
 const { NotificationModule } = NativeModules;
 
-export function schedulePreflightNotification(hour: number, minute: number): void {
-  if (Platform.OS === 'android') NotificationModule?.schedulePreflightNotification(hour, minute);
+export async function schedulePreflightNotifications(schedules: PreflightSchedule[]): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  // Cancel all existing slots first
+  await NotificationModule?.cancelAllPreflightNotifications();
+  // Schedule each slot (max 3)
+  schedules.slice(0, 3).forEach((s, index) => {
+    NotificationModule?.schedulePreflightNotification(index, s.hour, s.minute);
+  });
 }
 
-export function cancelPreflightNotification(): void {
-  if (Platform.OS === 'android') NotificationModule?.cancelPreflightNotification();
+export async function cancelAllPreflightNotifications(): Promise<void> {
+  if (Platform.OS === 'android') await NotificationModule?.cancelAllPreflightNotifications();
 }
 
 export async function isPreflightScheduled(): Promise<boolean> {

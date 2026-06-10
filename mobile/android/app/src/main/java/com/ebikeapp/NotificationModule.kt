@@ -13,7 +13,7 @@ class NotificationModule(private val reactContext: ReactApplicationContext) :
     override fun getName() = "NotificationModule"
 
     @ReactMethod
-    fun schedulePreflightNotification(hour: Int, minute: Int) {
+    fun schedulePreflightNotification(slotId: Int, hour: Int, minute: Int) {
         val am  = reactContext.getSystemService(AlarmManager::class.java)
         val cal = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, hour)
@@ -22,7 +22,7 @@ class NotificationModule(private val reactContext: ReactApplicationContext) :
             set(Calendar.MILLISECOND, 0)
             if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
         }
-        val pi = PreflightReceiver.buildPendingIntent(reactContext, hour, minute)
+        val pi = PreflightReceiver.buildPendingIntent(reactContext, slotId, hour, minute)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && am.canScheduleExactAlarms()) {
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
         } else {
@@ -31,15 +31,24 @@ class NotificationModule(private val reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
-    fun cancelPreflightNotification() {
+    fun cancelPreflightNotification(slotId: Int) {
         val am = reactContext.getSystemService(AlarmManager::class.java)
-        am.cancel(PreflightReceiver.buildPendingIntent(reactContext, 0, 0))
+        am.cancel(PreflightReceiver.buildPendingIntent(reactContext, slotId, 0, 0))
+    }
+
+    @ReactMethod
+    fun cancelAllPreflightNotifications() {
+        val am = reactContext.getSystemService(AlarmManager::class.java)
+        for (slotId in 0..2) {
+            am.cancel(PreflightReceiver.buildPendingIntent(reactContext, slotId, 0, 0))
+        }
     }
 
     @ReactMethod
     fun isScheduled(promise: Promise) {
+        // Checks slot 0 — sufficient for startup reschedule guard
         val pi = PendingIntent.getBroadcast(
-            reactContext, PreflightReceiver.REQUEST_CODE,
+            reactContext, PreflightReceiver.REQUEST_CODE_BASE,
             Intent(reactContext, PreflightReceiver::class.java),
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )

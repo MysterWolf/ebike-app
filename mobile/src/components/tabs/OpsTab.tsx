@@ -28,7 +28,8 @@ import {
   ModCategory,
 } from '../../state/types';
 import { OPS_PROMPTS } from '../../utils/ai';
-import { schedulePreflightNotification, cancelPreflightNotification } from '../../utils/NotificationService';
+import { schedulePreflightNotifications, cancelAllPreflightNotifications } from '../../utils/NotificationService';
+import { PreflightSchedule } from '../../state/types';
 import { nextService } from '../../utils/calculations';
 
 interface Props {
@@ -86,6 +87,12 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
   const [modComponent, setModComponent] = useState('');
   const [modNotes, setModNotes] = useState('');
   const [modComponentError, setModComponentError] = useState(false);
+
+  // Time picker modal for preflight scheduling
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [pickerHour, setPickerHour] = useState(6);
+  const [pickerMinute, setPickerMinute] = useState(0);
+  const [pickerAmPm, setPickerAmPm] = useState<'AM' | 'PM'>('AM');
 
   const MOD_COLORS = useMemo(() => ({
     Tires:      { bg: 'rgba(196,136,58,0.15)', text: C.warning  },
@@ -419,56 +426,149 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
 
         {/* ── NOTIFICATIONS ── */}
         <CollapsibleSection title="NOTIFICATIONS" defaultOpen={false}>
-          <View style={styles.rigToggleRow}>
-            <Text style={styles.checkLabel}>DAILY PREFLIGHT CHECK</Text>
-            <Switch
-              value={state.preflightNotifEnabled}
-              onValueChange={v => {
-                update({ preflightNotifEnabled: v });
-                if (v) schedulePreflightNotification(state.preflightNotifHour, state.preflightNotifMinute);
-                else   cancelPreflightNotification();
-              }}
-              trackColor={{ false: C.border, true: C.accent }}
-              thumbColor={C.white}
-            />
+          <Text style={[styles.checkLabel, { marginBottom: 10 }]}>DAILY PREFLIGHT CHECK</Text>
+          <Text style={[styles.checkSublabel, { marginBottom: 12 }]}>
+            Choose a time to be reminded. Tap a category to set the alarm — adjust in the picker. Up to 3 alarms.
+          </Text>
+
+          {/* Category tiles */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {([
+              { label: 'Morning',   h: 5,  m: 30 },
+              { label: 'Midday',    h: 12, m: 0  },
+              { label: 'Afternoon', h: 15, m: 30 },
+              { label: 'Evening',   h: 18, m: 0  },
+              { label: 'Custom',    h: -1, m: -1 },
+            ] as const).map(cat => (
+              <TouchableOpacity
+                key={cat.label}
+                style={[styles.modePill, { minWidth: 80, alignItems: 'center' }]}
+                disabled={(state.preflightSchedules ?? []).length >= 3}
+                onPress={() => {
+                  if (cat.h === -1) {
+                    // Custom — open picker cold (no pre-seed)
+                    setPickerHour(12);
+                    setPickerMinute(0);
+                    setPickerAmPm('PM');
+                  } else {
+                    const ampm = cat.h >= 12 ? 'PM' : 'AM';
+                    const h12  = cat.h % 12 === 0 ? 12 : cat.h % 12;
+                    setPickerHour(h12);
+                    setPickerMinute(cat.m);
+                    setPickerAmPm(ampm);
+                  }
+                  setTimePickerVisible(true);
+                }}>
+                <Text style={styles.modePillText}>{cat.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-          {state.preflightNotifEnabled && (
-            <>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                {([
-                  { sub: '6:00 AM',  h: 6,  m: 0  },
-                  { sub: '7:30 AM',  h: 7,  m: 30 },
-                  { sub: '9:00 AM',  h: 9,  m: 0  },
-                  { sub: '11:30 AM', h: 11, m: 30 },
-                  { sub: '1:00 PM',  h: 13, m: 0  },
-                ] as const).map(opt => {
-                  const active = state.preflightNotifHour === opt.h && state.preflightNotifMinute === opt.m;
-                  return (
-                    <TouchableOpacity key={opt.sub}
-                      style={[styles.modePill, active && styles.modePillActive]}
-                      onPress={() => {
-                        update({ preflightNotifHour: opt.h, preflightNotifMinute: opt.m });
-                        schedulePreflightNotification(opt.h, opt.m);
-                      }}>
-                      <Text style={[styles.modePillText, active && styles.modePillTextActive]}>
-                        {opt.sub}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+
+          {(state.preflightSchedules ?? []).length >= 3 && (
+            <Text style={[styles.checkSublabel, { color: C.accent, marginBottom: 8 }]}>
+              Max 3 alarms — remove one to add another.
+            </Text>
+          )}
+
+          {/* Active schedule list */}
+          {(state.preflightSchedules ?? []).map(s => {
+            const ampm = s.hour >= 12 ? 'PM' : 'AM';
+            const h12  = s.hour % 12 === 0 ? 12 : s.hour % 12;
+            const label = `${h12}:${String(s.minute).padStart(2, '0')} ${ampm}`;
+            return (
+              <View key={s.id} style={[styles.rigToggleRow, { marginBottom: 6, backgroundColor: C.surface, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 8 }]}>
+                <Text style={[styles.checkLabel, { fontSize: 14 }]}>{label} — daily</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    const next = (state.preflightSchedules ?? []).filter(x => x.id !== s.id);
+                    update({ preflightSchedules: next });
+                    if (next.length === 0) {
+                      cancelAllPreflightNotifications();
+                    } else {
+                      schedulePreflightNotifications(next);
+                    }
+                  }}>
+                  <Text style={{ color: C.accent, fontFamily: 'Courier New', fontSize: 13, fontWeight: '700' }}>REMOVE</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={[styles.checkSublabel, { marginTop: 8 }]}>
-                {(() => {
-                  const h = state.preflightNotifHour;
-                  const m = state.preflightNotifMinute;
-                  const ampm = h >= 12 ? 'PM' : 'AM';
-                  const h12  = h % 12 === 0 ? 12 : h % 12;
-                  return `Next preflight check: Tomorrow at ${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-                })()}
-              </Text>
-            </>
+            );
+          })}
+
+          {(state.preflightSchedules ?? []).length === 0 && (
+            <Text style={[styles.checkSublabel, { fontStyle: 'italic' }]}>No alarms set.</Text>
           )}
         </CollapsibleSection>
+
+        {/* Time Picker Modal */}
+        <Modal visible={timePickerVisible} transparent animationType="fade">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: C.surface, borderRadius: 12, padding: 24, width: 280 }}>
+              <Text style={[styles.checkLabel, { marginBottom: 16, textAlign: 'center' }]}>SET ALARM TIME</Text>
+
+              {/* Hour / Minute / AM-PM steppers */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 20 }}>
+                {/* Hour */}
+                <View style={{ alignItems: 'center' }}>
+                  <TouchableOpacity onPress={() => setPickerHour(h => h === 12 ? 1 : h + 1)} style={{ padding: 8 }}>
+                    <Text style={{ color: C.ink, fontSize: 20, fontFamily: 'Courier New' }}>+</Text>
+                  </TouchableOpacity>
+                  <Text style={{ color: C.ink, fontSize: 28, fontFamily: 'Courier New', fontWeight: '700', minWidth: 40, textAlign: 'center' }}>
+                    {String(pickerHour).padStart(2, '0')}
+                  </Text>
+                  <TouchableOpacity onPress={() => setPickerHour(h => h === 1 ? 12 : h - 1)} style={{ padding: 8 }}>
+                    <Text style={{ color: C.ink, fontSize: 20, fontFamily: 'Courier New' }}>−</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={{ color: C.ink, fontSize: 28, fontFamily: 'Courier New', fontWeight: '700' }}>:</Text>
+
+                {/* Minute */}
+                <View style={{ alignItems: 'center' }}>
+                  <TouchableOpacity onPress={() => setPickerMinute(m => (m + 5) % 60)} style={{ padding: 8 }}>
+                    <Text style={{ color: C.ink, fontSize: 20, fontFamily: 'Courier New' }}>+</Text>
+                  </TouchableOpacity>
+                  <Text style={{ color: C.ink, fontSize: 28, fontFamily: 'Courier New', fontWeight: '700', minWidth: 40, textAlign: 'center' }}>
+                    {String(pickerMinute).padStart(2, '0')}
+                  </Text>
+                  <TouchableOpacity onPress={() => setPickerMinute(m => (m - 5 + 60) % 60)} style={{ padding: 8 }}>
+                    <Text style={{ color: C.ink, fontSize: 20, fontFamily: 'Courier New' }}>−</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* AM/PM toggle */}
+                <TouchableOpacity
+                  onPress={() => setPickerAmPm(p => p === 'AM' ? 'PM' : 'AM')}
+                  style={{ backgroundColor: C.border, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 8 }}>
+                  <Text style={{ color: C.ink, fontSize: 18, fontFamily: 'Courier New', fontWeight: '700' }}>{pickerAmPm}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Confirm / Cancel */}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  style={[styles.modePill, { flex: 1, alignItems: 'center' }]}
+                  onPress={() => setTimePickerVisible(false)}>
+                  <Text style={styles.modePillText}>CANCEL</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modePillActive, { flex: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center' }]}
+                  onPress={() => {
+                    // Convert 12h → 24h
+                    let h24 = pickerHour % 12;
+                    if (pickerAmPm === 'PM') h24 += 12;
+                    const id = `${Date.now()}-${h24}-${pickerMinute}`;
+                    const newSchedule: PreflightSchedule = { id, hour: h24, minute: pickerMinute };
+                    const next = [...(state.preflightSchedules ?? []).slice(0, 2), newSchedule];
+                    update({ preflightSchedules: next, preflightNotifEnabled: true });
+                    schedulePreflightNotifications(next);
+                    setTimePickerVisible(false);
+                  }}>
+                  <Text style={styles.modePillTextActive}>SET ALARM</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* ── DISPLAY MODE ── */}
         <CollapsibleSection title="DISPLAY MODE" defaultOpen={true}>
