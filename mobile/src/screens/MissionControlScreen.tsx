@@ -17,6 +17,7 @@ import { BikeTab } from '../components/tabs/BikeTab';
 import { GearTab } from '../components/tabs/GearTab';
 import { OpsTab } from '../components/tabs/OpsTab';
 import { ChatPanel } from '../components/chat/ChatPanel';
+import { BatteryUsedModal } from '../components/BatteryUsedModal';
 
 export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
   const { C } = useTheme();
@@ -27,7 +28,7 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
   const [showWizard, setShowWizard] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
-  const { setRideMode, status, lastKnownBlePct, lastRideLoggedAt } = useBleContext();
+  const { setRideMode, status, lastKnownBlePct, lastRideLoggedAt, pendingRide, saveRide } = useBleContext();
   const prevBleStatus = useRef(status);
 
   const styles = useMemo(() => StyleSheet.create({
@@ -162,6 +163,9 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
     [state]
   );
 
+  function handleSaveRide(battUsed: number) { saveRide(battUsed); }
+  function handleSkipRide() { saveRide(null); }
+
   function handleWizardComplete(values: Partial<AppState>) {
     setStateRaw(prev => {
       const next = { ...prev, ...values };
@@ -246,6 +250,14 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
           />
         )}
       </View>
+
+      <BatteryUsedModal
+        visible={pendingRide !== null}
+        distMi={pendingRide?.distMi ?? 0}
+        durationMin={pendingRide?.durationMin ?? 0}
+        onSave={handleSaveRide}
+        onSkip={handleSkipRide}
+      />
     </View>
   );
 }

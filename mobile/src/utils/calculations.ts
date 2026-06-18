@@ -22,9 +22,9 @@ const BASELINE_WEIGHT  = 20;   // virtual miles
 const NEUTRAL_BASELINE = 1.75; // fixed anchor regardless of current rideMode
 
 export function overallAvg(state: AppState): number {
-  const rides = state.rideLog ?? [];
+  const rides       = (state.rideLog ?? []).filter(r => r.drawRate != null && r.drawRate > 0);
   const totalDist   = rides.reduce((sum, r) => sum + r.distance, 0);
-  const weightedSum = rides.reduce((sum, r) => sum + r.drawRate * r.distance, 0);
+  const weightedSum = rides.reduce((sum, r) => sum + r.drawRate! * r.distance, 0);
   return (weightedSum + NEUTRAL_BASELINE * BASELINE_WEIGHT) / (totalDist + BASELINE_WEIGHT);
 }
 

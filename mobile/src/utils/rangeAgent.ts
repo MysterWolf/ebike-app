@@ -41,12 +41,12 @@ export function runRangeAgent(input: RangeAgentInput): RangeAgentOutput {
   const validRides = rideHistory.filter(r =>
     normalizeMode(r.rideMode ?? '') === normalizedCurrent &&
     r.distance > 0 &&
-    r.drawRate > 0 &&
+    r.drawRate != null && r.drawRate > 0 &&
     r.drawRate <= OUTLIER_THRESHOLD
   );
 
   const totalDist   = validRides.reduce((s, r) => s + r.distance, 0);
-  const weightedSum = validRides.reduce((s, r) => s + r.drawRate * r.distance, 0);
+  const weightedSum = validRides.reduce((s, r) => s + r.drawRate! * r.distance, 0);
   const weightedAvg = totalDist > 0 ? weightedSum / totalDist : null;
 
   // Rule 5 — mode fallback: no valid history for this mode

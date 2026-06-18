@@ -243,7 +243,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     setEditLoggedAt(key);
     setEditRideDate(ride.date);
     setEditDist(String(ride.distance));
-    setEditBat(String(ride.batteryUsed));
+    setEditBat(ride.batteryUsed != null ? String(ride.batteryUsed) : '');
     setEditMode(ride.rideMode ?? 'CRUISER');
     setEditNotes(ride.notes ?? '');
     setEditModalVisible(true);
@@ -274,7 +274,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
           const removed = state.rideLog.find(r => (r.logged_at ?? r.date) === editLoggedAt);
           const newLog  = state.rideLog.filter(r => (r.logged_at ?? r.date) !== editLoggedAt);
           const newOdometer = removed ? Math.max(0, Math.round((state.odometer - removed.distance) * 10) / 10) : state.odometer;
-          const newBattery  = removed ? Math.min(100, Math.round((state.battery + removed.batteryUsed) * 10) / 10) : state.battery;
+          const newBattery  = removed ? Math.min(100, Math.round((state.battery + (removed.batteryUsed ?? 0)) * 10) / 10) : state.battery;
           update({ rideLog: newLog, odometer: newOdometer, battery: newBattery });
           setEditModalVisible(false);
         },
@@ -352,7 +352,7 @@ export function RideTab({ state, update, onSysMsg }: Props) {
     for (const { ride } of displayRides) {
       const key = ride.rideMode ?? 'UNKNOWN';
       if (!buckets[key]) buckets[key] = [];
-      buckets[key].push({ drawRate: ride.drawRate, distance: ride.distance });
+      if (ride.drawRate != null) buckets[key].push({ drawRate: ride.drawRate, distance: ride.distance });
     }
     if (buckets['HARD']) {
       buckets['SPORT'] = [...(buckets['SPORT'] ?? []), ...buckets['HARD']];
@@ -540,8 +540,8 @@ export function RideTab({ state, update, onSysMsg }: Props) {
                           <View style={styles.histRow}>
                             <Text style={[styles.histCell, styles.histDate, styles.histValue]}>{ride.date}</Text>
                             <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.distance.toFixed(1)}<Text style={styles.histUnit}> mi</Text></Text>
-                            <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.batteryUsed}<Text style={styles.histUnit}>%</Text></Text>
-                            <Text style={[styles.histCell, styles.histDraw, styles.histDrawValue]}>{ride.drawRate.toFixed(2)}<Text style={styles.histUnit}> %/mi</Text></Text>
+                            <Text style={[styles.histCell, styles.histNum, styles.histValue]}>{ride.batteryUsed != null ? ride.batteryUsed : '—'}<Text style={styles.histUnit}>{ride.batteryUsed != null ? '%' : ''}</Text></Text>
+                            <Text style={[styles.histCell, styles.histDraw, styles.histDrawValue]}>{ride.drawRate != null ? ride.drawRate.toFixed(2) : '—'}<Text style={styles.histUnit}>{ride.drawRate != null ? ' %/mi' : ''}</Text></Text>
                           </View>
                           <TouchableOpacity onPress={() => openEditModal(ride)} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
                             <Text style={styles.modeBadge}>

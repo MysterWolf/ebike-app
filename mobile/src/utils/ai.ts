@@ -57,7 +57,7 @@ function buildContext(state: AppState): string {
   const recentMissions = [...state.rideLog].reverse().slice(0, 5);
   const missionLines = recentMissions.length > 0
     ? recentMissions.map(r =>
-        `    ${r.date.padEnd(18)}${r.distance.toFixed(1).padStart(5)} mi  ${String(r.batteryUsed).padStart(4)}%  ${r.drawRate.toFixed(2)} %/mi`
+        `    ${r.date.padEnd(18)}${r.distance.toFixed(1).padStart(5)} mi  ${r.batteryUsed != null ? String(r.batteryUsed).padStart(4) + '%' : '  —%'}  ${r.drawRate != null ? r.drawRate.toFixed(2) + ' %/mi' : '— %/mi'}`
       ).join('\n')
     : '    No missions logged';
 

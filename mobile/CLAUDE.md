@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.7 (versionCode 39)
+**Current version:** 0.4.9 (versionCode 40)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -241,6 +241,17 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 ---
 
 ## Changelog
+
+### v0.4.9 — June 2026
+- Feat: manual battery entry modal on ride end (Option B)
+- `BleContext.tsx` — `finalizeAutoRide` now sets `pendingRide` state instead of auto-saving; exposes `pendingRide: PendingRide | null` and `saveRide(batteryUsedPct: number | null)` in context value
+- New `src/components/BatteryUsedModal.tsx` — overlay modal: "How much battery did you use?", numeric input 0–100, Save / Skip buttons; auto-focuses keyboard on appear
+- `MissionControlScreen.tsx` — watches `pendingRide`, shows `BatteryUsedModal`, calls `saveRide(pct)` on Save or `saveRide(null)` on Skip
+- `state/types.ts` — `RideLogEntry.batteryUsed` and `.drawRate` are now `number | null`; skipped rides save with null battery fields
+- `calculations.ts` — `overallAvg` filters out null-drawRate rides before computing weighted avg
+- `rangeAgent.ts` — mode-filter guards `r.drawRate != null` before the `> 0` check
+- `ai.ts`, `RideTab.tsx` — null-safe display for batteryUsed/drawRate in history and mode stats
+- Draw rate formula unchanged: `battUsed / distMi` — but now computed from user-entered battery, not BLE estimate
 
 ### v0.4.8 — June 2026
 - Feat: multi-alarm preflight notification scheduler

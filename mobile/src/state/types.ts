@@ -5,8 +5,8 @@ export interface ChargeLogEntry {
 
 export interface RideLogEntry {
   distance: number;
-  batteryUsed: number;
-  drawRate: number;
+  batteryUsed: number | null;
+  drawRate: number | null;
   date: string;
   logged_at?: string;
   rideMode?: string;

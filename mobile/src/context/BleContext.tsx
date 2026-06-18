@@ -19,6 +19,18 @@ import { BleService, BleStatus, V70Telemetry } from '../services/BleService';
 import { dbRun } from '../db/database';
 import { haversineDistanceMiles, metersPerSecondToMph } from '../utils/rideCalculations';
 
+export interface PendingRide {
+  distMi:      number;
+  durationMin: number;
+  dateStr:     string;
+  startIso:    string;
+  endIso:      string;
+  startV:      number | null;
+  endV:        number | null;
+  distKm:      number;
+  rideMode:    string;
+}
+
 interface BleContextValue {
   status:       BleStatus;
   statusMsg:    string;
@@ -27,11 +39,13 @@ interface BleContextValue {
   connect:      () => Promise<void>;
   disconnect:   () => Promise<void>;
   setRideMode:  (mode: string) => void;
-  gpsSpeedMph:      number | null;   // live GPS speed; null when not riding
-  gpsDistMiles:     number;          // accumulated GPS distance for the current ride
-  liveDrawRate:     number | null;   // (battery_start - battery_now) / gpsDistMiles; null < 0.1 mi
-  lastKnownBlePct:  number | null;   // last BLE-read battery %, persisted across sessions
-  lastRideLoggedAt: number | null;   // bumps (Date.now()) after each auto-saved ride
+  gpsSpeedMph:      number | null;
+  gpsDistMiles:     number;
+  liveDrawRate:     number | null;
+  lastKnownBlePct:  number | null;
+  lastRideLoggedAt: number | null;
+  pendingRide:      PendingRide | null;
+  saveRide:         (batteryUsedPct: number | null) => Promise<void>;
 }
 
 const BleContext = createContext<BleContextValue | null>(null);
@@ -72,6 +86,9 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   const [lastKnownBlePct, setLastKnownBlePct] = useState<number | null>(null);
   const [lastRideLoggedAt, setLastRideLoggedAt] = useState<number | null>(null);
 
+  const pendingRideRef = useRef<PendingRide | null>(null);
+  const [pendingRide, setPendingRide] = useState<PendingRide | null>(null);
+
   const addLog = useCallback((msg: string) => {
     setLog(prev => [`${new Date().toLocaleTimeString()} ${msg}`, ...prev.slice(0, 49)]);
   }, []);
@@ -108,18 +125,16 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
       : (lastTripRawRef.current ?? 0) * 0.1 / 1.60934;
     const distKm  = distMi * 1.60934;
 
-    // Prefer direct battery_pct from telemetry; fall back to voltage conversion
-    // if pct refs were never populated (e.g. BLE connected but no packets received).
+    // BLE-derived battery delta — used only for the non-ride connection guard.
     const vToPct = (v: number | null): number | null =>
       v != null ? Math.max(0, Math.min(100, Math.round((v - 42) / 16.8 * 100))) : null;
-    const startPct = startBattPctRef.current ?? vToPct(startV);
-    const endPct   = lastBattPctRef.current  ?? vToPct(endV);
-    const battUsed = (startPct != null && endPct != null) ? Math.max(0, startPct - endPct) : 0;
-    const drawRate = distMi > 0 ? battUsed / distMi : 0;
+    const startPct     = startBattPctRef.current ?? vToPct(startV);
+    const endPct       = lastBattPctRef.current  ?? vToPct(endV);
+    const battUsedEst  = (startPct != null && endPct != null) ? Math.max(0, startPct - endPct) : 0;
 
     // ── non-ride connection guard ─────────────────────────────────────────────
-    if (distMi < 0.1 && battUsed < 3) {
-      console.log(`[AutoRide] Discarded — ${distMi.toFixed(3)} mi / ${battUsed}% — below minimum thresholds`);
+    if (distMi < 0.1 && battUsedEst < 3) {
+      console.log(`[AutoRide] Discarded — ${distMi.toFixed(3)} mi / ${battUsedEst}% — below minimum thresholds`);
       return;
     }
 
@@ -130,30 +145,13 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
       ', ' +
       new Date(endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    // ── auto-save to ride_log ──────────────────────────────────────────────
-    try {
-      await dbRun(
-        `INSERT INTO ride_log
-           (id, distance_mi, battery_used_pct, draw_rate, date_str, logged_at,
-            ride_mode, start_time, end_time, duration_minutes,
-            start_battery_v, end_battery_v, distance_km, auto_logged, created_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [
-          uuid(), distMi, battUsed, drawRate, dateStr, endIso,
-          rideModeRef.current, startIso, endIso,
-          Math.round(durationMin * 10) / 10,
-          startV, endV, distKm, 1, endIso,
-        ]
-      );
-
-      const mins = Math.round(durationMin);
-      const toast = `Ride logged — ${mins} min, ${battUsed}% battery used`;
-      ToastAndroid.show(toast, ToastAndroid.LONG);
-      console.log('[AutoRide] Saved:', toast);
-      setLastRideLoggedAt(Date.now());
-    } catch (err) {
-      console.error('[AutoRide] Save failed:', err);
-    }
+    // ── expose to MissionControlScreen — modal collects battery % ────────────
+    const pending: PendingRide = {
+      distMi, durationMin, dateStr, startIso, endIso,
+      startV, endV, distKm, rideMode: rideModeRef.current,
+    };
+    pendingRideRef.current = pending;
+    setPendingRide(pending);
   }, []); // refs only — no deps needed
 
   const startGpsWatch = useCallback(async () => {
@@ -202,6 +200,42 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
     setLiveDrawRate(null);
     console.log('[GPS] Watch stopped');
   }, []);
+
+  // Called by MissionControlScreen after the user responds to the battery modal.
+  // batteryUsedPct = null means "Skip" — ride saves with null battery fields.
+  const saveRide = useCallback(async (batteryUsedPct: number | null) => {
+    const ride = pendingRideRef.current;
+    if (!ride) return;
+    pendingRideRef.current = null;
+    setPendingRide(null);
+
+    const battUsed = batteryUsedPct;
+    const drawRate = (battUsed != null && ride.distMi > 0) ? battUsed / ride.distMi : null;
+
+    try {
+      await dbRun(
+        `INSERT INTO ride_log
+           (id, distance_mi, battery_used_pct, draw_rate, date_str, logged_at,
+            ride_mode, start_time, end_time, duration_minutes,
+            start_battery_v, end_battery_v, distance_km, auto_logged, created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          uuid(), ride.distMi, battUsed, drawRate, ride.dateStr, ride.endIso,
+          ride.rideMode, ride.startIso, ride.endIso,
+          Math.round(ride.durationMin * 10) / 10,
+          ride.startV, ride.endV, ride.distKm, 1, ride.endIso,
+        ]
+      );
+      const mins = Math.round(ride.durationMin);
+      const battStr = battUsed != null ? `${battUsed}% battery used` : 'battery not logged';
+      const toast = `Ride logged — ${mins} min, ${battStr}`;
+      ToastAndroid.show(toast, ToastAndroid.LONG);
+      console.log('[AutoRide] Saved:', toast);
+      setLastRideLoggedAt(Date.now());
+    } catch (err) {
+      console.error('[AutoRide] Save failed:', err);
+    }
+  }, []); // pendingRideRef is a ref — stable, no deps needed
 
   useEffect(() => {
     BleService.setStatusCallback((s, msg) => {
@@ -277,7 +311,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <BleContext.Provider value={{ status, statusMsg, telemetry, log, connect, disconnect, setRideMode, gpsSpeedMph, gpsDistMiles, liveDrawRate, lastKnownBlePct, lastRideLoggedAt }}>
+    <BleContext.Provider value={{ status, statusMsg, telemetry, log, connect, disconnect, setRideMode, gpsSpeedMph, gpsDistMiles, liveDrawRate, lastKnownBlePct, lastRideLoggedAt, pendingRide, saveRide }}>
       {children}
     </BleContext.Provider>
   );
