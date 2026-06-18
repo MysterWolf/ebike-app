@@ -155,6 +155,12 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   }, []); // refs only — no deps needed
 
   const startGpsWatch = useCallback(async () => {
+    // Clear any stale watch before starting a new one
+    if (gpsWatchIdRef.current !== null) {
+      Geolocation.clearWatch(gpsWatchIdRef.current);
+      gpsWatchIdRef.current = null;
+      console.log('[GPS] Cleared stale watch before starting new one');
+    }
     if (Platform.OS === 'android') {
       const result = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
@@ -250,6 +256,9 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
         lastTripRawRef.current       = null;
         startBattPctRef.current      = null;
         lastBattPctRef.current       = null;
+        // Dismiss any unanswered modal from a previous ride
+        pendingRideRef.current = null;
+        setPendingRide(null);
         console.log('[AutoRide] Ride started');
         startGpsWatch();
       }

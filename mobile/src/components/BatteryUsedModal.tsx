@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -17,6 +17,15 @@ interface Props {
 export function BatteryUsedModal({ visible, distMi, durationMin, onSave, onSkip }: Props) {
   const { C } = useTheme();
   const [input, setInput] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
+  // Focus only when modal becomes visible — not on mount (which would fire
+  // with visible=false and could trigger keyboard/focus conflicts on Android)
+  useEffect(() => {
+    if (!visible) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 200);
+    return () => clearTimeout(t);
+  }, [visible]);
 
   const parsed = parseInt(input, 10);
   const valid  = !isNaN(parsed) && parsed >= 0 && parsed <= 100;
@@ -34,7 +43,8 @@ export function BatteryUsedModal({ visible, distMi, durationMin, onSave, onSkip 
 
   const mins = Math.round(durationMin);
 
-  const styles = StyleSheet.create({
+  // Memoised so StyleSheet.create doesn't run on every 150ms telemetry re-render
+  const styles = useMemo(() => StyleSheet.create({
     overlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.65)',
@@ -120,7 +130,7 @@ export function BatteryUsedModal({ visible, distMi, durationMin, onSave, onSkip 
       color: '#FFFFFF',
       textTransform: 'uppercase',
     },
-  });
+  }), [C]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleSkip}>
@@ -136,6 +146,7 @@ export function BatteryUsedModal({ visible, distMi, durationMin, onSave, onSkip 
           <Text style={styles.label}>How much battery did you use?</Text>
           <View style={styles.inputRow}>
             <TextInput
+              ref={inputRef}
               style={styles.input}
               keyboardType="number-pad"
               placeholder="—"
@@ -143,7 +154,6 @@ export function BatteryUsedModal({ visible, distMi, durationMin, onSave, onSkip 
               value={input}
               onChangeText={v => setInput(v.replace(/[^0-9]/g, ''))}
               maxLength={3}
-              autoFocus
             />
             <Text style={styles.pctLabel}>%</Text>
           </View>

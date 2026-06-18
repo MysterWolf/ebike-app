@@ -163,8 +163,8 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
     [state]
   );
 
-  function handleSaveRide(battUsed: number) { saveRide(battUsed); }
-  function handleSkipRide() { saveRide(null); }
+  const handleSaveRide = useCallback((battUsed: number) => { saveRide(battUsed); }, [saveRide]);
+  const handleSkipRide = useCallback(() => { saveRide(null); }, [saveRide]);
 
   function handleWizardComplete(values: Partial<AppState>) {
     setStateRaw(prev => {

@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.9 (versionCode 40)
+**Current version:** 0.4.10 (versionCode 41)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -241,6 +241,14 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 ---
 
 ## Changelog
+
+### v0.4.10 — June 2026
+- Fix: phone lockup on BLE connect after v0.4.9 sideload
+- `BatteryUsedModal.tsx` — removed `autoFocus` (was firing on component mount with `visible=false`, popping keyboard before any ride); replaced with `useRef` + `useEffect` that focuses 200ms after modal becomes visible
+- `BatteryUsedModal.tsx` — moved `StyleSheet.create()` into `useMemo([C])` so styles are not recreated on every 150ms telemetry re-render
+- `MissionControlScreen.tsx` — `handleSaveRide`/`handleSkipRide` now wrapped in `useCallback` so `BatteryUsedModal` doesn't re-render unnecessarily from parent renders
+- `BleContext.tsx` — on `'connected'`: clears `pendingRideRef` and calls `setPendingRide(null)` before starting a new ride, dismissing any unanswered modal from a previous ride
+- `BleContext.tsx` — `startGpsWatch` now clears any existing watch before starting a new one, guarding against double GPS watch accumulation on rapid reconnect
 
 ### v0.4.9 — June 2026
 - Feat: manual battery entry modal on ride end (Option B)
