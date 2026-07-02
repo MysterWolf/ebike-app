@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.11 (versionCode 42)
+**Current version:** 0.4.12 (versionCode 43)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -38,9 +38,9 @@ reverse-engineer. Any change to the BLE layer risks breaking the handshake.
 - No `readStaticInfo()`, no MTU negotiation, no connection priority calls.
 - The auth state machine in `BleAuth.ts` is correct — do not reorder or add steps.
 
-`BleContext.tsx` contains the auto-ride pipeline that wraps the BLE session.
+`BleContext.tsx` manages the BLE session, GPS tracking, and live draw rate.
 The GPS additions and live draw rate logic are safe to modify; the BLE status callback
-structure and `finalizeAutoRide` refs pattern must not be restructured.
+structure and BLE service integration must not be restructured.
 
 ---
 
@@ -92,23 +92,24 @@ Key fields relevant to ride pipeline:
 
 ---
 
-## BLE + GPS ride pipeline (`BleContext.tsx`)
+## BLE + GPS session (`BleContext.tsx`)
+
+**Ride logging is fully manual** — users log rides via the LOG MISSION form in RideTab.
+BLE provides live telemetry only; there is no auto-save pipeline.
 
 **On BLE connect (`status → 'connected'`):**
-1. Reset all ride refs (`rideStartTimeRef`, `startBattVRef`, `startBattPctRef`, etc.)
+1. Reset `gotFirstTelemetryRef`, `startBattPctRef`, `lastBattPctRef`
 2. Start `Geolocation.watchPosition` — accumulates `gpsDistRef` via haversine
-3. First telemetry packet → capture `startBattPctRef` and `startBattVRef`
 
 **Every telemetry packet (~150 ms):**
 - Merges into `telemetry` state (battery_v, battery_pct, motor_w, trip_raw, etc.)
-- Updates `lastBattPctRef`, `lastBattVRef`, `lastTripRawRef`
+- First packet → captures `startBattPctRef` (for live draw rate)
+- Updates `lastBattPctRef`, `lastKnownBlePct`, persists to `last_known_battery.json`
 - If `gpsDistRef >= 0.1 mi`: computes `liveDrawRate = (startBattPct - nowBattPct) / gpsDistMiles`
 
 **On disconnect:**
 1. Stop GPS watch, clear `liveDrawRate`
-2. `finalizeAutoRide()` — discards if < 2 min; saves to `ride_log` via `dbRun`
-
-**Distance source priority:** GPS (`gpsDistRef`) > `trip_raw` fallback
+2. `MissionControlScreen` syncs `lastKnownBlePct` → `state.battery` on disconnect
 
 **Context values exposed:**
 - `status`, `statusMsg`, `telemetry`, `log`
@@ -116,6 +117,7 @@ Key fields relevant to ride pipeline:
 - `gpsSpeedMph: number | null` — live GPS speed
 - `gpsDistMiles: number` — accumulated GPS distance this ride
 - `liveDrawRate: number | null` — live draw rate, null below 0.1 mi
+- `lastKnownBlePct: number | null` — last BLE battery %, persisted across restarts
 
 ---
 
@@ -241,6 +243,13 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 ---
 
 ## Changelog
+
+### v0.4.12 — July 2026
+- Refactor: removed `BatteryUsedModal` and entire auto-ride pipeline
+- `BleContext.tsx` — deleted `PendingRide`, `finalizeAutoRide`, `saveRide`, associated state/refs; BLE disconnect no longer triggers any ride-save flow
+- `MissionControlScreen.tsx` — removed modal import, handlers, and watcher; only BLE battery sync on disconnect remains
+- `BatteryUsedModal.tsx` — deleted
+- Ride logging is now fully manual and fully intentional: LOG MISSION form in RideTab only
 
 ### v0.4.11 — July 2026
 - Fix: LOG MISSION form no longer asks user to calculate battery delta

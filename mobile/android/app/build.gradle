@@ -79,8 +79,8 @@ android {
         applicationId "com.ebikeapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 42
-        versionName "0.4.11"
+        versionCode 43
+        versionName "0.4.12"
     }
     applicationVariants.all { variant ->
         variant.outputs.all {
