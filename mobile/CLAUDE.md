@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.10 (versionCode 41)
+**Current version:** 0.4.11 (versionCode 42)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -241,6 +241,14 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 ---
 
 ## Changelog
+
+### v0.4.11 — July 2026
+- Fix: LOG MISSION form no longer asks user to calculate battery delta
+- Replaced single `BATTERY USED %` field with `START BATTERY %` and `END BATTERY %`
+- `logRide()` computes `battUsed = start - end` and `drawRate = battUsed / dist` internally
+- `state.battery` updated to `endBat` directly on log (end battery is current battery — no subtraction)
+- Distance field moved to full-width row above the battery pair
+- Validation: end battery must be less than start battery
 
 ### v0.4.10 — June 2026
 - Fix: phone lockup on BLE connect after v0.4.9 sideload

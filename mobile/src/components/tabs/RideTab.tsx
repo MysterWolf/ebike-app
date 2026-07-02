@@ -52,9 +52,10 @@ export function RideTab({ state, update, onSysMsg }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [chargedToInput, setChargedToInput] = useState('');
   const [chargedToError, setChargedToError] = useState(false);
-  const [rideDistInput, setRideDistInput] = useState('');
-  const [rideBatInput, setRideBatInput] = useState('');
-  const [rideLogError, setRideLogError] = useState<'dist' | 'bat' | null>(null);
+  const [rideDistInput,     setRideDistInput]     = useState('');
+  const [rideStartBatInput, setRideStartBatInput] = useState('');
+  const [rideEndBatInput,   setRideEndBatInput]   = useState('');
+  const [rideLogError, setRideLogError] = useState<'dist' | 'startBat' | 'endBat' | null>(null);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editLoggedAt, setEditLoggedAt] = useState('');   // unique key for edit/delete
@@ -218,23 +219,27 @@ export function RideTab({ state, update, onSysMsg }: Props) {
   }
 
   function logRide() {
-    const dist = parseFloat(rideDistInput);
-    const bat  = parseFloat(rideBatInput);
+    const dist     = parseFloat(rideDistInput);
+    const startBat = parseFloat(rideStartBatInput);
+    const endBat   = parseFloat(rideEndBatInput);
     if (isNaN(dist) || dist <= 0) { setRideLogError('dist'); setTimeout(() => setRideLogError(null), 1400); return; }
-    if (isNaN(bat) || bat <= 0 || bat > 100) { setRideLogError('bat'); setTimeout(() => setRideLogError(null), 1400); return; }
-    const drawRate = bat / dist;
+    if (isNaN(startBat) || startBat < 0 || startBat > 100) { setRideLogError('startBat'); setTimeout(() => setRideLogError(null), 1400); return; }
+    if (isNaN(endBat) || endBat < 0 || endBat >= startBat) { setRideLogError('endBat'); setTimeout(() => setRideLogError(null), 1400); return; }
+    const battUsed = Math.round((startBat - endBat) * 10) / 10;
+    const drawRate = battUsed / dist;
     const now = new Date();
     const date = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' +
       now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const entry: RideLogEntry = { distance: dist, batteryUsed: bat, drawRate, date, logged_at: now.toISOString(), rideMode: state.rideMode };
+    const entry: RideLogEntry = { distance: dist, batteryUsed: battUsed, drawRate, date, logged_at: now.toISOString(), rideMode: state.rideMode };
     update({
       rideLog: [...state.rideLog, entry],
       odometer: Math.round((state.odometer + dist) * 10) / 10,
-      battery: Math.max(0, Math.round((state.battery - bat) * 10) / 10),
+      battery: Math.round(endBat),
     });
     setRideDistInput('');
-    setRideBatInput('');
-    onSysMsg(`📍 Mission logged — ${dist.toFixed(1)} mi, ${bat}% used, ${drawRate.toFixed(2)} %/mi draw rate.`);
+    setRideStartBatInput('');
+    setRideEndBatInput('');
+    onSysMsg(`📍 Mission logged — ${dist.toFixed(1)} mi, ${battUsed}% used, ${drawRate.toFixed(2)} %/mi draw rate.`);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
   }
 
@@ -445,18 +450,24 @@ export function RideTab({ state, update, onSysMsg }: Props) {
         {/* ── Log a new ride ───────────────────────────────────────────────── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>LOG MISSION</Text>
+          <View style={styles.group}>
+            <Text style={styles.label}>DISTANCE (mi)</Text>
+            <TextInput style={[styles.input, rideLogError === 'dist' && styles.inputError]}
+              keyboardType="decimal-pad" placeholder="0.0" placeholderTextColor={C.muted}
+              value={rideDistInput} onChangeText={setRideDistInput} />
+          </View>
           <View style={styles.inlineRow}>
             <View style={styles.flex1}>
-              <Text style={styles.label}>DISTANCE (mi)</Text>
-              <TextInput style={[styles.input, rideLogError === 'dist' && styles.inputError]}
-                keyboardType="decimal-pad" placeholder="0.0" placeholderTextColor={C.muted}
-                value={rideDistInput} onChangeText={setRideDistInput} />
+              <Text style={styles.label}>START BATTERY %</Text>
+              <TextInput style={[styles.input, rideLogError === 'startBat' && styles.inputError]}
+                keyboardType="number-pad" placeholder="e.g. 95" placeholderTextColor={C.muted}
+                value={rideStartBatInput} onChangeText={setRideStartBatInput} />
             </View>
             <View style={styles.flex1}>
-              <Text style={styles.label}>BATTERY USED %</Text>
-              <TextInput style={[styles.input, rideLogError === 'bat' && styles.inputError]}
-                keyboardType="decimal-pad" placeholder="0.0" placeholderTextColor={C.muted}
-                value={rideBatInput} onChangeText={setRideBatInput} />
+              <Text style={styles.label}>END BATTERY %</Text>
+              <TextInput style={[styles.input, rideLogError === 'endBat' && styles.inputError]}
+                keyboardType="number-pad" placeholder="e.g. 30" placeholderTextColor={C.muted}
+                value={rideEndBatInput} onChangeText={setRideEndBatInput} />
             </View>
           </View>
           <View style={styles.logModeRow}>
