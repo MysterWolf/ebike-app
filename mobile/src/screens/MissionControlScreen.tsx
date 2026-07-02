@@ -17,7 +17,6 @@ import { BikeTab } from '../components/tabs/BikeTab';
 import { GearTab } from '../components/tabs/GearTab';
 import { OpsTab } from '../components/tabs/OpsTab';
 import { ChatPanel } from '../components/chat/ChatPanel';
-import { BatteryUsedModal } from '../components/BatteryUsedModal';
 
 export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
   const { C } = useTheme();
@@ -28,7 +27,7 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
   const [showWizard, setShowWizard] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
-  const { setRideMode, status, lastKnownBlePct, lastRideLoggedAt, pendingRide, saveRide } = useBleContext();
+  const { setRideMode, status, lastKnownBlePct } = useBleContext();
   const prevBleStatus = useRef(status);
 
   const styles = useMemo(() => StyleSheet.create({
@@ -102,13 +101,6 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
     });
   }, []);
 
-  // Reload rideLog into state after BleContext auto-saves a ride to the DB
-  useEffect(() => {
-    if (!lastRideLoggedAt || !loaded) return;
-    loadState().then(saved => {
-      if (saved) setStateRaw(prev => ({ ...prev, rideLog: saved.rideLog }));
-    }).catch(err => console.error('[MCS] rideLog reload:', err));
-  }, [lastRideLoggedAt, loaded, update]);
 
   // Sync BLE battery reading into state.battery on disconnect so the
   // metrics tile and all calculations stay accurate without manual re-entry
@@ -163,8 +155,6 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
     [state]
   );
 
-  const handleSaveRide = useCallback((battUsed: number) => { saveRide(battUsed); }, [saveRide]);
-  const handleSkipRide = useCallback(() => { saveRide(null); }, [saveRide]);
 
   function handleWizardComplete(values: Partial<AppState>) {
     setStateRaw(prev => {
@@ -251,13 +241,7 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
         )}
       </View>
 
-      <BatteryUsedModal
-        visible={pendingRide !== null}
-        distMi={pendingRide?.distMi ?? 0}
-        durationMin={pendingRide?.durationMin ?? 0}
-        onSave={handleSaveRide}
-        onSkip={handleSkipRide}
-      />
+
     </View>
   );
 }
