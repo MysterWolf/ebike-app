@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.12 (versionCode 43)
+**Current version:** 0.4.13 (versionCode 44)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -243,6 +243,12 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 ---
 
 ## Changelog
+
+### v0.4.13 — July 2026
+- Fix: LOG MISSION form now asks only for END BATTERY %
+- Start battery reads from `state.battery` (already known); no input required
+- Removed START BATTERY % field added erroneously in v0.4.11
+- Form is now: DISTANCE + END BATTERY % + mode pills + LOG button
 
 ### v0.4.12 — July 2026
 - Refactor: removed `BatteryUsedModal` and entire auto-ride pipeline
