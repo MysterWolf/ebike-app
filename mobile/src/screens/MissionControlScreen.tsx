@@ -209,7 +209,7 @@ export function MissionControlScreen({ initialTab }: { initialTab?: Tab }) {
   return (
     <View style={styles.container}>
       <Header make={state.make} model={state.model} nickname={state.nickname} />
-      <MetricsRows state={state} />
+      <MetricsRows state={state} onOpenCharging={() => setActiveTab('ops')} />
       <TabBar active={activeTab} onSelect={setActiveTab} />
 
       <View style={styles.content}>

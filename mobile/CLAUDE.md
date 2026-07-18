@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.13 (versionCode 44)
+**Current version:** 0.4.14 (versionCode 45)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -55,13 +55,17 @@ App.tsx
         └── BleProvider (BleContext.tsx)
             ├── MissionControlScreen   [Mission tab]
             │   ├── state: AppState (loaded from SQLite via storage.ts)
+            │   ├── SetupWizard        [first-run only — 3-step bike identity/electrical/starting-point]
+            │   ├── EditBikeScreen     [overlay — make/model/nickname, reachable from OpsTab]
             │   ├── MetricsRows        [top tiles: odometer, battery, est.range, draw rates]
             │   ├── TabBar             [ride | bike | gear | ops | chat]
             │   └── Tabs:
-            │       ├── RideTab        [battery, ride mode, manual log, mission history]
-            │       ├── BikeTab        [bike specs]
-            │       ├── GearTab        [gear loadout]
-            │       ├── OpsTab         [pre-mission check, BMS, service, gear, debrief]
+            │       ├── RideTab        [battery, ride mode, manual log, mission history, draw rate by mode]
+            │       ├── BikeTab        [bike specs — identity, electrical, physical, specs summary]
+            │       ├── GearTab        [gear loadout — footwear/helmet/gloves/jacket/cargo/lock, custom items]
+            │       ├── OpsTab         [notifications, display mode, hardware rig status, pre-mission
+            │       │                   checklist, tire pressure log, service log, mod log, AI analysis
+            │       │                   shortcuts, bike profile, data export/import/reset — see below]
             │       └── ChatPanel      [AI analyst, API key, quick queries]
             └── TelemetryScreen        [Telemetry tab]
                 └── Live BLE data + GPS speed + draw rate
@@ -150,21 +154,55 @@ Five rules (in order):
 
 ---
 
+## Charging timer (`src/utils/chargeEstimate.ts`)
+
+No BLE dependency — pure time-based estimate while the bike is on the charger. Lives in
+`AppState.chargeSession` (`ChargeSession`), persisted to the sidecar JSON like other config
+fields (not SQLite — it's transient session state, not a log).
+
+- `ChargeSession { isCharging, startTime, startPct, lastActualPct, lastActualTime, calibration[] }`
+- `estimatePct(startPct, elapsedMinutes)` — tiered 52V lithium charge rate, walked across
+  tier boundaries: 0–20% at 1.5%/10min, 20–80% at 1.0%/10min, 80–100% at 0.5%/10min
+- `currentChargeEstimate(session, now?)` — re-anchors from `lastActualPct`/`lastActualTime`
+  once the user has logged an actual reading, and scales the base rate by how far off the
+  last prediction was (clamped 0.4×–2.5×, same outlier-guard spirit as `rangeAgent.ts`)
+- `elapsedLabel(startTime, now?)` — `"1h 23m"` display string
+
+Elapsed time and the estimate are always computed from `startTime`/`now()` at render time —
+never a running interval that would drift or break when backgrounded. OpsTab's 60s
+`setInterval` only forces a re-render to refresh the display; it holds no state of its own.
+
+UI lives in OpsTab → CHARGING (top section). "DONE CHARGING" writes a `ChargeLogEntry` into
+the existing `chargeLog` and sets `state.battery` to the final actual %, same as RideTab's
+existing "POST-CHARGE UPDATE" flow — so the rest of the app (EST. RANGE, etc.) reflects it
+immediately rather than the charging timer keeping a second, disconnected battery record.
+
+---
+
 ## Database (`src/db/`)
 
 SQLite via `react-native-sqlite-storage`. DB name: `ebike.db`.
 
 Key tables: `bike_state`, `ride_log`, `charge_log`, `tire_pressure_log`,
 `service_log`, `mod_log`, `messages`, `telemetry_readings`, `ai_usage_log`.
+Views: `v_mission_history`, `v_ride_stats`, `v_battery_trend`.
+
+**`telemetry_readings`, `ai_usage_log`, the three views, and the `tier`/`sub_expires_at`/
+`sub_provider`/`sub_receipt` columns on `bike_state` are schema-only right now** — defined
+in `schema.ts` but nothing in the app reads or writes them yet (no telemetry-per-reading
+logging, no AI usage tracking, no subscription/tier gating implemented).
 
 Schema versioned via `_schema_version` table. Current migrations:
 - v1: Initial schema
 - v2: Add `model`, `nickname` to `bike_state`
 - v3: Add auto-ride columns to `ride_log` (`start_time`, `end_time`, `duration_minutes`,
-  `start_battery_v`, `end_battery_v`, `distance_km`, `auto_logged`)
+  `start_battery_v`, `end_battery_v`, `distance_km`, `auto_logged`) — these columns are
+  also currently unused; they were added for the BLE auto-ride pipeline that was later
+  removed (v0.4.12). `saveRideLog`/`loadRideLog` in `storage.ts` never touch them.
 
 `storage.ts` assembles full `AppState` from all tables + sidecar JSON
-(`ebike-config.json` stores `apiKey`, `customGearOptions`, `checklistState`).
+(`ebike-config.json` stores `apiKey`, `customGearOptions`, `checklistState`,
+`preflightSchedules`, `preflightNotifEnabled`, `hasAskedNotifPermission`).
 
 ---
 
@@ -230,6 +268,37 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 
 ---
 
+## Notifications (`src/utils/NotificationService.ts`)
+
+Wraps a native `NotificationModule` (Kotlin). Only feature today: **daily preflight-check
+alarms** — up to 3 concurrent `PreflightSchedule` entries (`{id, hour, minute}`), each fires
+a notification via `PreflightReceiver.kt` and sets a `preflightResetPending` flag in the
+`app_flags` SQLite table, which resets `checklistState` on next app load. Configured from
+OpsTab → NOTIFICATIONS. No battery-threshold or charging-related notifications exist yet.
+
+---
+
+## Data export/import (`src/utils/dataExport.ts`)
+
+- `exportData()` — shares the full `AppState` as JSON via the OS share sheet (used for backup)
+- `exportRidesCsv()` / `importRidesCsv()` — CSV round-trip for `ride_log` only, distances in km
+- `importData()` — restores a full JSON backup; preserves the current API key over the
+  imported one unless the current one is empty
+All four are wired into OpsTab → DATA MANAGEMENT.
+
+---
+
+## Known-stale / unused code — do not build on these without asking
+- `src/screens/RideTrackingScreen.tsx`, `src/components/RideStats.tsx`,
+  `src/services/rideService.ts`, `src/types/ride.ts` — an earlier ride-tracking screen that
+  called a fake `localhost:3000` backend. Not imported by `App.tsx`; fully superseded by
+  `MissionControlScreen` + `RideTab`. `SpeedMonitor.tsx` is only used by this dead screen.
+- Repo root (one level above `mobile/`) also has `App.tsx.broken`, empty `EbikeApp/`/`TempApp/`
+  dirs, a root `src/db/` prototype, and a `backend/` Node server — none of it touches the real
+  app; see root `../CLAUDE.md` for details.
+
+---
+
 ## Deferred / not yet implemented
 
 - **PiP handlebar mode** — `enterPip()` stub is wired; needs UI trigger (long-press, disconnect event, etc.)
@@ -243,6 +312,20 @@ Mission Control uses **voltage-based SOC** — `(voltage - 42.0) / (58.8 - 42.0)
 ---
 
 ## Changelog
+
+### v0.4.14 (build 45) — July 2026
+- Feat: Charging Timer & Battery Estimator — time-based charge % estimate while the bike
+  is on the charger, no BLE required
+- New `src/utils/chargeEstimate.ts` — tiered charge-rate model (`estimatePct`), calibration-aware
+  live estimate (`currentChargeEstimate`), elapsed-time formatter (`elapsedLabel`)
+- `state/types.ts` — `ChargeSession`/`ChargeCalibrationPoint` types, `chargeSession` field
+  added to `AppState` + `DEFAULT_STATE`
+- `storage.ts` — `chargeSession` persisted via the sidecar JSON (same as `preflightSchedules`)
+- `OpsTab.tsx` — new CHARGING section (top of tab): START CHARGING (pre-fills from last known
+  BLE battery %), live "ON CHARGER" status with elapsed time + estimate, UPDATE ACTUAL %
+  (adds a calibration point, re-anchors the estimate), DONE CHARGING (records final actual %
+  into the existing `chargeLog` and syncs `state.battery`, same as RideTab's charge logging)
+- Root-level docs (`../CLAUDE.md`) updated to match
 
 ### v0.4.13 — July 2026
 - Fix: LOG MISSION form now asks only for END BATTERY %

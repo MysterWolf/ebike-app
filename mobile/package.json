@@ -1,6 +1,6 @@
 {
   "name": "ebike-mobile",
-  "version": "0.4.5",
+  "version": "0.4.15",
   "main": "index.js",
   "scripts": {
     "android": "react-native run-android",

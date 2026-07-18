@@ -57,6 +57,30 @@ export interface PreflightSchedule {
   minute: number; // 0-59
 }
 
+export interface ChargeCalibrationPoint {
+  time:      string;  // ISO — when this actual reading was taken
+  estimated: number;  // model's % at that moment, just before correction
+  actual:    number;  // user-entered real %
+}
+
+export interface ChargeSession {
+  isCharging:     boolean;
+  startTime:      string | null;  // ISO
+  startPct:       number | null;
+  lastActualPct:  number | null;
+  lastActualTime: string | null;  // ISO — anchor for estimation once set
+  calibration:    ChargeCalibrationPoint[];  // this session only
+}
+
+export const DEFAULT_CHARGE_SESSION: ChargeSession = {
+  isCharging:     false,
+  startTime:      null,
+  startPct:       null,
+  lastActualPct:  null,
+  lastActualTime: null,
+  calibration:    [],
+};
+
 export interface AppState {
   odometer: number;
   battery: number;
@@ -99,6 +123,7 @@ export interface AppState {
   preflightNotifMinute:    number;   // legacy — kept for migration only
   hasAskedNotifPermission: boolean;
   preflightSchedules:      PreflightSchedule[];
+  chargeSession:           ChargeSession;
 }
 
 export const DEFAULT_STATE: AppState = {
@@ -143,6 +168,7 @@ export const DEFAULT_STATE: AppState = {
   preflightNotifMinute:    30,
   hasAskedNotifPermission: false,
   preflightSchedules:      [],
+  chargeSession:           DEFAULT_CHARGE_SESSION,
 };
 
 export type Tab = 'ride' | 'bike' | 'gear' | 'ops' | 'chat';

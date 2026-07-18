@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,11 +26,16 @@ import {
   ServiceLogEntry,
   ModLogEntry,
   ModCategory,
+  ChargeLogEntry,
+  ChargeCalibrationPoint,
+  DEFAULT_CHARGE_SESSION,
 } from '../../state/types';
 import { OPS_PROMPTS } from '../../utils/ai';
 import { schedulePreflightNotifications, cancelAllPreflightNotifications } from '../../utils/NotificationService';
 import { PreflightSchedule } from '../../state/types';
 import { nextService } from '../../utils/calculations';
+import { currentChargeEstimate, elapsedLabel } from '../../utils/chargeEstimate';
+import { useBleContext } from '../../context/BleContext';
 
 interface Props {
   state: AppState;
@@ -93,6 +98,82 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
   const [pickerHour, setPickerHour] = useState(6);
   const [pickerMinute, setPickerMinute] = useState(0);
   const [pickerAmPm, setPickerAmPm] = useState<'AM' | 'PM'>('AM');
+
+  // Charging timer
+  const { lastKnownBlePct } = useBleContext();
+  const [chargeTick, setChargeTick] = useState(0); // forces elapsed/estimate refresh; not the source of truth
+  const [startPctInput, setStartPctInput] = useState('');
+  const [actualInputMode, setActualInputMode] = useState<'update' | 'done' | null>(null);
+  const [actualPctInput, setActualPctInput] = useState('');
+  const [actualPctError, setActualPctError] = useState(false);
+
+  const chargeSession = state.chargeSession ?? DEFAULT_CHARGE_SESSION;
+
+  useEffect(() => {
+    if (!chargeSession.isCharging) return;
+    const t = setInterval(() => setChargeTick(n => n + 1), 60000);
+    return () => clearInterval(t);
+  }, [chargeSession.isCharging]);
+
+  function startCharging() {
+    const pct = parseFloat(startPctInput);
+    const startPct = !isNaN(pct) && pct >= 0 && pct <= 100 ? pct : (lastKnownBlePct ?? state.battery);
+    update({
+      chargeSession: {
+        isCharging: true,
+        startTime: new Date().toISOString(),
+        startPct,
+        lastActualPct: null,
+        lastActualTime: null,
+        calibration: [],
+      },
+    });
+    setStartPctInput('');
+  }
+
+  function openActualInput(mode: 'update' | 'done') {
+    setActualInputMode(mode);
+    setActualPctInput('');
+    setActualPctError(false);
+  }
+
+  function confirmActualInput() {
+    const pct = parseFloat(actualPctInput);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      setActualPctError(true);
+      setTimeout(() => setActualPctError(false), 1400);
+      return;
+    }
+    const now = new Date();
+    const estimated = currentChargeEstimate(chargeSession, now).pct;
+    const point: ChargeCalibrationPoint = { time: now.toISOString(), estimated, actual: pct };
+
+    if (actualInputMode === 'done') {
+      const entry: ChargeLogEntry = {
+        pct: Math.round(pct),
+        time: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+          now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      };
+      update({
+        chargeSession: DEFAULT_CHARGE_SESSION,
+        chargeLog: [...state.chargeLog, entry],
+        battery: Math.round(pct),
+      });
+    } else {
+      update({
+        chargeSession: {
+          ...chargeSession,
+          lastActualPct: pct,
+          lastActualTime: now.toISOString(),
+          calibration: [...chargeSession.calibration, point],
+        },
+      });
+    }
+    setActualInputMode(null);
+    setActualPctInput('');
+  }
+
+  const chargeEstimate = currentChargeEstimate(chargeSession);
 
   const MOD_COLORS = useMemo(() => ({
     Tires:      { bg: 'rgba(196,136,58,0.15)', text: C.warning  },
@@ -423,6 +504,76 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
   return (
     <>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+
+        {/* ── CHARGING ── */}
+        <CollapsibleSection title="CHARGING" defaultOpen={true}>
+          {!chargeSession.isCharging ? (
+            <View style={styles.card}>
+              <View style={styles.logInputRow}>
+                <TextInput style={styles.logInput}
+                  value={startPctInput}
+                  onChangeText={setStartPctInput}
+                  keyboardType="number-pad"
+                  placeholder={`Current % (e.g. ${lastKnownBlePct ?? state.battery})`}
+                  placeholderTextColor={C.muted} />
+              </View>
+              <TouchableOpacity style={styles.logServiceBtn} onPress={startCharging} activeOpacity={0.8}>
+                <Text style={styles.logServiceBtnText}>START CHARGING</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <View style={[styles.milestoneBadge, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: C.telemetry }} />
+                <Text style={[styles.milestoneText, { color: C.telemetry }]}>ON CHARGER</Text>
+              </View>
+
+              <View style={[styles.svcEntryTop, { marginBottom: 4 }]}>
+                <Text style={styles.checkLabel}>Elapsed</Text>
+                <Text style={styles.svcOdometer}>{elapsedLabel(chargeSession.startTime!)}</Text>
+              </View>
+              <View style={[styles.svcEntryTop, { marginBottom: 10 }]}>
+                <Text style={styles.checkLabel}>Est. charged</Text>
+                <Text style={[styles.svcOdometer, { color: C.accent }]}>{chargeEstimate.pct.toFixed(0)}%</Text>
+              </View>
+              <Text style={[styles.emptyNote, { marginBottom: 10 }]}>
+                {chargeEstimate.confidence === 'calibrated'
+                  ? 'Estimate calibrated from your last actual reading.'
+                  : 'Default estimate — log an actual reading to calibrate.'}
+              </Text>
+
+              {actualInputMode === null ? (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity style={[styles.modePill, { flex: 1 }]} onPress={() => openActualInput('update')} activeOpacity={0.7}>
+                    <Text style={styles.modePillText}>UPDATE ACTUAL %</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modePill, { flex: 1, backgroundColor: C.accentTint, borderColor: C.accentTint }]}
+                    onPress={() => openActualInput('done')} activeOpacity={0.7}>
+                    <Text style={[styles.modePillText, { color: C.accent }]}>DONE CHARGING</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.logInputRow}>
+                  <TextInput style={[styles.logInput, actualPctError && styles.inputError]}
+                    value={actualPctInput}
+                    onChangeText={setActualPctInput}
+                    keyboardType="number-pad"
+                    placeholder="Actual % from bike display"
+                    placeholderTextColor={C.muted}
+                    autoFocus />
+                  <TouchableOpacity style={styles.logBtn} onPress={confirmActualInput} activeOpacity={0.8}>
+                    <Text style={styles.logBtnText}>{actualInputMode === 'done' ? 'FINISH' : 'SAVE'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.logBtn} onPress={() => setActualInputMode(null)} activeOpacity={0.8}>
+                    <Text style={styles.logBtnText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </CollapsibleSection>
+
+        <View style={styles.divider} />
 
         {/* ── NOTIFICATIONS ── */}
         <CollapsibleSection title="NOTIFICATIONS" defaultOpen={false}>

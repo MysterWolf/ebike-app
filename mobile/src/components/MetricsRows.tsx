@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { MONO } from '../theme/colors';
-import { AppState } from '../state/types';
+import { AppState, DEFAULT_CHARGE_SESSION } from '../state/types';
 import {
   modeBaseline,
   lastRideDraw,
@@ -11,14 +11,16 @@ import {
 } from '../utils/calculations';
 import { runRangeAgent } from '../utils/rangeAgent';
 import { useBleContext } from '../context/BleContext';
+import { currentChargeEstimate, elapsedLabel } from '../utils/chargeEstimate';
 
 const NEUTRAL_BASELINE = 1.75;
 
 interface Props {
   state: AppState;
+  onOpenCharging?: () => void;
 }
 
-export function MetricsRows({ state }: Props) {
+export function MetricsRows({ state, onOpenCharging }: Props) {
   const { C } = useTheme();
 
   const styles = useMemo(() => StyleSheet.create({
@@ -80,6 +82,38 @@ export function MetricsRows({ state }: Props) {
       color: C.muted,
       marginTop: 1,
     },
+    chargeBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: 8,
+      marginTop: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      backgroundColor: C.accentTint,
+      borderWidth: 1,
+      borderColor: C.telemetry,
+      borderRadius: 6,
+    },
+    chargeDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+      backgroundColor: C.telemetry,
+    },
+    chargeText: {
+      fontFamily: MONO,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+      color: C.telemetry,
+      flex: 1,
+    },
+    chargeChevron: {
+      fontFamily: MONO,
+      fontSize: 12,
+      color: C.telemetry,
+    },
   }), [C]);
 
   const odo      = state.odometer;
@@ -114,8 +148,28 @@ export function MetricsRows({ state }: Props) {
     ? C.danger
     : agentResult.estimatedRangeMiles < 15 ? C.warning : C.accent;
 
+  // Live "ON CHARGER" banner — visible on every Mission sub-tab (MetricsRows sits
+  // above TabBar). Ticks every 60s to keep elapsed/estimate fresh with no BLE needed.
+  const chargeSession = state.chargeSession ?? DEFAULT_CHARGE_SESSION;
+  const [, setChargeTick] = useState(0);
+  useEffect(() => {
+    if (!chargeSession.isCharging) return;
+    const t = setInterval(() => setChargeTick(n => n + 1), 60000);
+    return () => clearInterval(t);
+  }, [chargeSession.isCharging]);
+  const chargeEst = chargeSession.isCharging ? currentChargeEstimate(chargeSession) : null;
+
   return (
     <>
+      {chargeSession.isCharging && (
+        <Pressable style={styles.chargeBanner} onPress={onOpenCharging} disabled={!onOpenCharging}>
+          <View style={styles.chargeDot} />
+          <Text style={styles.chargeText}>
+            ON CHARGER · {elapsedLabel(chargeSession.startTime!)} · Est. {chargeEst!.pct.toFixed(0)}%
+          </Text>
+          {onOpenCharging && <Text style={styles.chargeChevron}>›</Text>}
+        </Pressable>
+      )}
       <View style={styles.row}>
         <View style={styles.tile}>
           <Text style={styles.label}>TOTAL MILES</Text>

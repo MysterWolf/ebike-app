@@ -11,7 +11,7 @@
 // ============================================================
 
 import RNFS from 'react-native-fs';
-import { AppState, DEFAULT_STATE, RideLogEntry, ChargeLogEntry, TirePressureEntry, ServiceLogEntry, ModLogEntry, Message, PreflightSchedule } from '../state/types';
+import { AppState, DEFAULT_STATE, RideLogEntry, ChargeLogEntry, TirePressureEntry, ServiceLogEntry, ModLogEntry, Message, PreflightSchedule, ChargeSession, DEFAULT_CHARGE_SESSION } from '../state/types';
 import { getDb } from '../db/database';
 import type { SQLiteDatabase } from 'react-native-sqlite-storage';
 
@@ -52,6 +52,7 @@ interface SidecarData {
   preflightNotifMinute:    number;
   hasAskedNotifPermission: boolean;
   preflightSchedules:      PreflightSchedule[];
+  chargeSession:           ChargeSession;
 }
 
 async function loadSidecar(): Promise<SidecarData> {
@@ -63,7 +64,7 @@ async function loadSidecar(): Promise<SidecarData> {
   return { apiKey: '', customGearOptions: {}, checklistState: {},
            preflightNotifEnabled: true, preflightNotifHour: 6,
            preflightNotifMinute: 30, hasAskedNotifPermission: false,
-           preflightSchedules: [] };
+           preflightSchedules: [], chargeSession: DEFAULT_CHARGE_SESSION };
 }
 
 async function saveSidecar(data: SidecarData): Promise<void> {
@@ -145,6 +146,7 @@ export async function loadState(): Promise<AppState | null> {
       preflightNotifHour:      sidecar.preflightNotifHour      ?? 6,
       preflightNotifMinute:    sidecar.preflightNotifMinute    ?? 30,
       hasAskedNotifPermission: sidecar.hasAskedNotifPermission ?? false,
+      chargeSession:           sidecar.chargeSession ?? DEFAULT_CHARGE_SESSION,
       preflightSchedules:      (() => {
         const saved = sidecar.preflightSchedules ?? [];
         if (saved.length > 0) return saved;
@@ -203,6 +205,7 @@ export async function saveState(state: AppState): Promise<void> {
         preflightNotifMinute:    state.preflightNotifMinute,
         hasAskedNotifPermission: state.hasAskedNotifPermission,
         preflightSchedules:      state.preflightSchedules ?? [],
+        chargeSession:           state.chargeSession ?? DEFAULT_CHARGE_SESSION,
       }),
     ]);
 
