@@ -1,6 +1,6 @@
 # Mission Control — Claude Context
 **Last updated:** 2026-07-18
-**Version:** v0.4.16 (build 47)
+**Version:** v0.4.17 (build 48)
 
 > Detailed technical reference (architecture, calculations, DB schema, BLE session
 > flow) lives in `mobile/CLAUDE.md` — keep that one current after every session.
@@ -11,7 +11,7 @@ An e-bike companion app for Android. Not a telemetry mirror — a logging, analy
 
 ## Current Status
 - **Live:** In development. Not yet on Play Store.
-- **Version:** v0.4.16 (build 47)
+- **Version:** v0.4.17 (build 48)
 - **Platform:** Android only
 - **AI chat:** Wired to Claude API (`claude-sonnet-4-6`), user supplies their own key in-app — works, not blocked
 - **BLE:** V70 mutual authentication handshake complete and stable; live telemetry flowing at ~150ms
@@ -35,7 +35,7 @@ An e-bike companion app for Android. Not a telemetry mirror — a logging, analy
 - **Baseline consumption rates are derived from logged rides**, not hardcoded — `overallAvg()` and `runRangeAgent()` are both distance-weighted averages over `rideLog`, anchored by a small fixed virtual-mile prior so early estimates aren't wild.
 - **Gear changes update tire spec automatically** when a "Tires" mod is logged (see `tireSizeFromMod` flag) — no separate recalibration prompt exists yet.
 - **Charging is tracked separately from riding, and needs no BLE connection.** (v0.4.14–0.4.15) A time-based tiered charge-rate model estimates % while on the charger; user-entered actual readings recalibrate the estimate going forward; a live "ON CHARGER" banner surfaces on every Mission sub-tab. See `mobile/CLAUDE.md` → Charging timer for the algorithm.
-- **Range estimate accounts for starting battery zone.** (v0.4.16) Draw rate is worse starting a ride from a high (>85%) or low (<30%) charge than from the 30–85% sweet spot — real-world V70 data. See `mobile/CLAUDE.md` → Range agent.
+- **Starting battery zone is surfaced as UI context, not applied to the estimate.** (v0.4.16 added a high/low-charge draw-rate multiplier; v0.4.17 removed it — the weighted average draw rate already reflects real-world performance across charge levels, so multiplying on top double-penalized the number.) `batteryZone`/`zoneNote` still show as a caveat in the UI. See `mobile/CLAUDE.md` → Range agent.
 
 ## Feature Tiers (product plan — not yet gated in code)
 | Tier | Model | Price | Features |
@@ -81,7 +81,7 @@ Theme persists via a small RNFS JSON file (`ebike-theme.json`), not AsyncStorage
 - **Battery threshold notifications** (20%, 10% defaults) — not implemented; only the daily preflight-check notification exists
 - **Terrain-aware range prediction, GPX import, commute optimizer** — future Tier 2/3 AI ideas, not started
 
-## Known Issues (as of v0.4.16)
+## Known Issues (as of v0.4.17)
 - None currently tracked as open bugs. The historical issues below (hardcoded baselines, mode not propagating, incorrect draw formula) were fixed in earlier releases — see `mobile/CLAUDE.md` changelog for the specific fixes if you need the history.
 
 ## Real Ride Benchmarks (Movcan V70, developer's bike)

@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.16 (versionCode 47)
+**Current version:** 0.4.17 (versionCode 48)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -312,6 +312,20 @@ All four are wired into OpsTab → DATA MANAGEMENT.
 ---
 
 ## Changelog
+
+### v0.4.17 (build 48) — July 2026
+- Fix: removed the battery-zone multiplier from `rangeAgent.ts` — the weighted average
+  draw rate already reflects real-world performance across charge levels, so multiplying
+  it by a zone factor on top double-penalized the estimate at high/low starting charge
+- `getBatteryZoneMultiplier()` deleted entirely; `getBatteryZone()`/`getZoneNote()` kept —
+  `batteryZone`/`zoneNote` still flow to `MetricsRows` as informational UI context only,
+  no longer distort `estimatedRangeMiles`/`drawRateUsed`
+- Fix: Rule 1's `validRides` filter now requires `distance >= 3` (was `distance > 0`) —
+  rides under 3 mi have unreliable draw rates (stop/start dominates) and don't represent
+  true mode efficiency, so they're excluded from `rangeAgent.ts`'s mode-specific weighted
+  average and its confidence/ride-count. Note: `calculations.ts`'s `overallAvg()` (feeds
+  the separate OVERALL AVG tile) has its own filter and was *not* changed — short rides
+  still count there, which is an intentional scope decision, not an oversight.
 
 ### v0.4.16 (build 47) — July 2026
 - Feat: battery-zone multiplier in the range agent — real-world V70 data shows draw rate

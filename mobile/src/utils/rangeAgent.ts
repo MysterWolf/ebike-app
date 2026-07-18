@@ -34,17 +34,14 @@ function normalizeMode(mode: string): string {
 
 // Real-world V70 data: draw rate is worse starting from a high or low charge
 // (voltage least stable at the extremes of the lithium curve) than starting
-// from the 30-85% "sweet spot."
+// from the 30-85% "sweet spot." Informational only — the weighted average draw
+// rate already reflects real-world performance across charge levels, so this
+// is surfaced via zoneNote for the UI, not applied as a multiplier (that would
+// double-penalize the estimate).
 function getBatteryZone(startPct: number): 'optimal' | 'high' | 'low' {
   if (startPct > 85) return 'high';
   if (startPct < 30) return 'low';
   return 'optimal';
-}
-
-function getBatteryZoneMultiplier(startPct: number): number {
-  if (startPct > 85) return 1.15; // high charge penalty
-  if (startPct < 30) return 1.25; // low charge penalty
-  return 1.0;                     // sweet spot — no adjustment
 }
 
 function getZoneNote(zone: 'optimal' | 'high' | 'low'): string {
@@ -56,9 +53,8 @@ function getZoneNote(zone: 'optimal' | 'high' | 'low'): string {
 export function runRangeAgent(input: RangeAgentInput): RangeAgentOutput {
   const { currentBatteryPct, startBatteryPct, currentMode, rideHistory, liveDrawRate, neutralBaseline } = input;
 
-  const batteryZone     = getBatteryZone(startBatteryPct);
-  const zoneMultiplier  = getBatteryZoneMultiplier(startBatteryPct);
-  const zoneNote        = getZoneNote(batteryZone);
+  const batteryZone = getBatteryZone(startBatteryPct);
+  const zoneNote     = getZoneNote(batteryZone);
 
   // Rule 4 — outlier threshold: exclude rides > 2× the neutral baseline
   const OUTLIER_THRESHOLD  = 2 * neutralBaseline;
@@ -68,7 +64,9 @@ export function runRangeAgent(input: RangeAgentInput): RangeAgentOutput {
   // Rule 1 — mode-specific rides with outliers removed
   const validRides = rideHistory.filter(r =>
     normalizeMode(r.rideMode ?? '') === normalizedCurrent &&
-    r.distance > 0 &&
+    // Rides under 3 mi have unreliable draw rates (stop/start dominates) and
+    // don't represent true mode efficiency — excluded from the weighted average.
+    r.distance >= 3 &&
     r.drawRate != null && r.drawRate > 0 &&
     r.drawRate <= OUTLIER_THRESHOLD
   );
@@ -80,10 +78,9 @@ export function runRangeAgent(input: RangeAgentInput): RangeAgentOutput {
   // Rule 5 — mode fallback: no valid history for this mode
   if (weightedAvg === null) {
     if (liveDrawRate != null && liveDrawRate > 0) {
-      const adjustedRate = liveDrawRate * zoneMultiplier;
       return {
-        estimatedRangeMiles: Math.max(0, currentBatteryPct / adjustedRate),
-        drawRateUsed:        adjustedRate,
+        estimatedRangeMiles: Math.max(0, currentBatteryPct / liveDrawRate),
+        drawRateUsed:        liveDrawRate,
         confidence:          'low',
         confidenceReason:    `No ${modeLabel} history — using live ride data`,
         rideCount:           0,
@@ -92,10 +89,9 @@ export function runRangeAgent(input: RangeAgentInput): RangeAgentOutput {
         zoneNote,
       };
     }
-    const adjustedRate = neutralBaseline * zoneMultiplier;
     return {
-      estimatedRangeMiles: Math.max(0, currentBatteryPct / adjustedRate),
-      drawRateUsed:        adjustedRate,
+      estimatedRangeMiles: Math.max(0, currentBatteryPct / neutralBaseline),
+      drawRateUsed:        neutralBaseline,
       confidence:          'low',
       confidenceReason:    `No ride history for ${modeLabel} yet`,
       rideCount:           0,
@@ -131,12 +127,9 @@ export function runRangeAgent(input: RangeAgentInput): RangeAgentOutput {
     confidenceReason += ' + live ride';
   }
 
-  // Battery zone multiplier — applied after the live blend, before the final estimate
-  const adjustedRate = drawRateUsed * zoneMultiplier;
-
   return {
-    estimatedRangeMiles: Math.max(0, currentBatteryPct / adjustedRate),
-    drawRateUsed:        adjustedRate,
+    estimatedRangeMiles: Math.max(0, currentBatteryPct / drawRateUsed),
+    drawRateUsed:        drawRateUsed,
     confidence,
     confidenceReason,
     rideCount:  count,
