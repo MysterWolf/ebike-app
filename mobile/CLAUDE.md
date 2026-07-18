@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.14 (versionCode 45)
+**Current version:** 0.4.16 (versionCode 47)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -312,6 +312,28 @@ All four are wired into OpsTab → DATA MANAGEMENT.
 ---
 
 ## Changelog
+
+### v0.4.16 (build 47) — July 2026
+- Feat: battery-zone multiplier in the range agent — real-world V70 data shows draw rate
+  is worse starting a ride from a high (>85%) or low (<30%) charge than from the 30-85%
+  "sweet spot" (voltage least stable at the extremes of the lithium curve)
+- `rangeAgent.ts` — `RangeAgentInput.startBatteryPct` (required); `getBatteryZone`/
+  `getBatteryZoneMultiplier` (1.15× high, 1.25× low, 1.0× sweet spot) applied to the draw
+  rate after the live blend (Rule 3), before the final range calc; output gains
+  `batteryZone: 'optimal' | 'high' | 'low'` and `zoneNote: string`
+- `MetricsRows.tsx` — passes `state.battery` as `startBatteryPct` (it only updates on
+  ride-end/disconnect-sync or manual log events, never mid-ride, so it already holds the
+  session's starting battery % for free — no BLE files touched, no new state); EST. RANGE
+  tile shows `zoneNote` as a second subtitle line when the zone isn't optimal
+
+### v0.4.15 (build 46) — July 2026
+- Feat: live "ON CHARGER" banner in `MetricsRows` — shown above the metric tiles on every
+  Mission sub-tab (RIDE/BIKE/GEAR/OPS/CHAT) whenever a charging session is active, since the
+  OPS-tab-only placement from v0.4.14 wasn't discoverable enough in testing
+- Tapping the banner jumps to the OPS tab (`onOpenCharging` prop, wired from
+  `MissionControlScreen` via `setActiveTab('ops')`)
+- Ticks every 60s (same pattern as OpsTab's own timer) to keep elapsed/estimate fresh
+  with no BLE connection required
 
 ### v0.4.14 (build 45) — July 2026
 - Feat: Charging Timer & Battery Estimator — time-based charge % estimate while the bike

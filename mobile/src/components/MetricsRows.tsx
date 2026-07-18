@@ -82,6 +82,12 @@ export function MetricsRows({ state, onOpenCharging }: Props) {
       color: C.muted,
       marginTop: 1,
     },
+    zoneNote: {
+      fontFamily: MONO,
+      fontSize: 6,
+      color: C.warning,
+      marginTop: 1,
+    },
     chargeBanner: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -131,6 +137,10 @@ export function MetricsRows({ state, onOpenCharging }: Props) {
 
   const agentResult = runRangeAgent({
     currentBatteryPct: liveBat,
+    // state.battery only updates on ride-end/disconnect-sync or manual log events —
+    // never during a live ride — so it holds this session's starting battery % for
+    // the whole ride, with no extra tracking needed.
+    startBatteryPct:   state.battery,
     currentMode:       state.rideMode,
     rideHistory:       state.rideLog,
     liveDrawRate:      agentLiveRate,
@@ -196,6 +206,11 @@ export function MetricsRows({ state, onOpenCharging }: Props) {
           <Text style={styles.confidenceReason} numberOfLines={2}>
             {agentResult.confidenceReason}
           </Text>
+          {agentResult.batteryZone !== 'optimal' && (
+            <Text style={styles.zoneNote} numberOfLines={2}>
+              {agentResult.zoneNote}
+            </Text>
+          )}
         </View>
       </View>
       <View style={[styles.row, styles.row2]}>
