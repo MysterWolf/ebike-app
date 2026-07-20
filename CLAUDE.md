@@ -1,6 +1,6 @@
 # Mission Control — Claude Context
 **Last updated:** 2026-07-18
-**Version:** v0.4.17 (build 48)
+**Version:** v0.4.18 (build 49)
 
 > Detailed technical reference (architecture, calculations, DB schema, BLE session
 > flow) lives in `mobile/CLAUDE.md` — keep that one current after every session.
@@ -11,7 +11,7 @@ An e-bike companion app for Android. Not a telemetry mirror — a logging, analy
 
 ## Current Status
 - **Live:** In development. Not yet on Play Store.
-- **Version:** v0.4.17 (build 48)
+- **Version:** v0.4.18 (build 49)
 - **Platform:** Android only
 - **AI chat:** Wired to Claude API (`claude-sonnet-4-6`), user supplies their own key in-app — works, not blocked
 - **BLE:** V70 mutual authentication handshake complete and stable; live telemetry flowing at ~150ms

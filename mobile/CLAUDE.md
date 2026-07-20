@@ -3,7 +3,7 @@
 React Native e-bike companion app for the Movcan V70.
 Android only. Bare workflow (no Expo runtime).
 
-**Current version:** 0.4.17 (versionCode 48)
+**Current version:** 0.4.18 (versionCode 49)
 **Package:** `com.ebikeapp`
 **Repo:** https://github.com/MysterWolf/ebike-app (branch: master)
 **APK output:** `android/app/build/outputs/apk/release/ebike-mission-control-release.apk`
@@ -312,6 +312,10 @@ All four are wired into OpsTab → DATA MANAGEMENT.
 ---
 
 ## Changelog
+
+### v0.4.18 (build 49) — July 2026
+- Fix: CHARGING section no longer asks for current battery % — uses `lastKnownBlePct ?? state.battery` directly on START CHARGING tap
+- Removed `startPctInput` state and the TextInput that asked for data the app already has
 
 ### v0.4.17 (build 48) — July 2026
 - Fix: removed the battery-zone multiplier from `rangeAgent.ts` — the weighted average

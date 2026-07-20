@@ -102,7 +102,6 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
   // Charging timer
   const { lastKnownBlePct } = useBleContext();
   const [chargeTick, setChargeTick] = useState(0); // forces elapsed/estimate refresh; not the source of truth
-  const [startPctInput, setStartPctInput] = useState('');
   const [actualInputMode, setActualInputMode] = useState<'update' | 'done' | null>(null);
   const [actualPctInput, setActualPctInput] = useState('');
   const [actualPctError, setActualPctError] = useState(false);
@@ -116,19 +115,16 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
   }, [chargeSession.isCharging]);
 
   function startCharging() {
-    const pct = parseFloat(startPctInput);
-    const startPct = !isNaN(pct) && pct >= 0 && pct <= 100 ? pct : (lastKnownBlePct ?? state.battery);
     update({
       chargeSession: {
         isCharging: true,
         startTime: new Date().toISOString(),
-        startPct,
+        startPct: lastKnownBlePct ?? state.battery,
         lastActualPct: null,
         lastActualTime: null,
         calibration: [],
       },
     });
-    setStartPctInput('');
   }
 
   function openActualInput(mode: 'update' | 'done') {
@@ -509,14 +505,6 @@ export function OpsTab({ state, update, onMissionAction, onReset, onEditProfile 
         <CollapsibleSection title="CHARGING" defaultOpen={true}>
           {!chargeSession.isCharging ? (
             <View style={styles.card}>
-              <View style={styles.logInputRow}>
-                <TextInput style={styles.logInput}
-                  value={startPctInput}
-                  onChangeText={setStartPctInput}
-                  keyboardType="number-pad"
-                  placeholder={`Current % (e.g. ${lastKnownBlePct ?? state.battery})`}
-                  placeholderTextColor={C.muted} />
-              </View>
               <TouchableOpacity style={styles.logServiceBtn} onPress={startCharging} activeOpacity={0.8}>
                 <Text style={styles.logServiceBtnText}>START CHARGING</Text>
               </TouchableOpacity>
